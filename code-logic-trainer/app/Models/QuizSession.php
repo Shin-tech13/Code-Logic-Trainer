@@ -15,7 +15,7 @@ class QuizSession extends Model
         'language',
         'topic',
         'score',
-        'status', // active, completed
+        'status', // active or completed po
     ];
 
     // The student taking the quiz

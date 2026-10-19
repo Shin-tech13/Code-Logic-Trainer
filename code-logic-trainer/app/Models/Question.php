@@ -18,7 +18,7 @@ class Question extends Model
     ];
 
     protected $casts = [
-        'options' => 'array', // Automatically casts JSON options column into a PHP array
+        'options' => 'array', // Automatically casts JSON options column into a PHP array para maayos ang option access
     ];
 
     // The quiz session this question belongs to

@@ -56,7 +56,7 @@ PROMPT;
         try {
             $response = Http::timeout(60)
                 ->retry(2, 1000, throw: false)
-                ->withToken($this->apiKey)           // Groq uses Bearer token auth
+                ->withToken($this->apiKey)
                 ->post($this->apiUrl, [
                     'model'       => $this->model,
                     'temperature' => 0.7,
