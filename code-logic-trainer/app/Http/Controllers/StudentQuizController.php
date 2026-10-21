@@ -119,8 +119,23 @@ class StudentQuizController extends Controller
      */
     public function play(QuizSession $session)
     {
+        abort_unless($session->student_id === Auth::id(), 403);
+
         $session->load('questions');
         return view('student.play', compact('session'));
+    }
+
+    /**
+     * Show the answer review after a student has submitted their quiz.
+     */
+    public function results(QuizSession $session)
+    {
+        abort_unless($session->student_id === Auth::id(), 403);
+        abort_unless($session->status === 'completed', 409, 'Submit this quiz before viewing its results.');
+
+        $session->load('questions');
+
+        return view('student.results', compact('session'));
     }
 
     /**
@@ -128,18 +143,54 @@ class StudentQuizController extends Controller
      */
     public function submit(Request $request, QuizSession $session)
     {
+        abort_unless($session->student_id === Auth::id(), 403);
+        abort_unless($session->status === 'active', 409, 'This quiz has already been submitted.');
+
         $validated = $request->validate([
-            'score' => ['required', 'integer', 'min:0'],
+            'answers' => ['required', 'array', 'min:1'],
+            'answers.*' => ['required', 'string', 'max:1000'],
         ]);
 
+        $questions = $session->questions()->get();
+        $answers = $validated['answers'];
+        $questionIds = $questions->modelKeys();
+
+        if (count($answers) !== count($questionIds)
+            || array_diff(array_map('strval', array_keys($answers)), array_map('strval', $questionIds))) {
+            abort(422, 'Submit one answer for every question in this quiz.');
+        }
+
+        $score = 0;
+        foreach ($questions as $question) {
+            $answer = $answers[$question->id] ?? null;
+            $normalizedAnswer = trim($answer);
+            $normalizedOptions = array_map(
+                static fn ($option) => trim((string) $option),
+                $question->options ?? []
+            );
+
+            if (! in_array($normalizedAnswer, $normalizedOptions, true)) {
+                abort(422, 'A submitted answer is not one of the available options.');
+            }
+
+            $answers[$question->id] = $normalizedAnswer;
+
+            if (hash_equals(trim((string) $question->correct_answer), $normalizedAnswer)) {
+                $score++;
+            }
+        }
+
         $session->update([
-            'score'  => $validated['score'],
+            'score'  => $score,
             'status' => 'completed',
+            'answers' => $answers,
         ]);
 
         return response()->json([
             'success'      => true,
-            'redirect_url' => route('student.dashboard'),
+            'score'        => $score,
+            'total'        => count($questionIds),
+            'redirect_url' => route('student.results', $session),
         ]);
     }
 }

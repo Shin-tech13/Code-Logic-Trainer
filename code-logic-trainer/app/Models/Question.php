@@ -11,6 +11,7 @@ class Question extends Model
 
     protected $fillable = [
         'quiz_session_id',
+        'quiz_id',
         'question_text',
         'options',
         'correct_answer',
@@ -25,5 +26,11 @@ class Question extends Model
     public function quizSession()
     {
         return $this->belongsTo(QuizSession::class);
+    }
+
+    // The professor-created quiz this question belongs to
+    public function quiz()
+    {
+        return $this->belongsTo(Quiz::class);
     }
 }

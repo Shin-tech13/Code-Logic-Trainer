@@ -22,6 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_whitelisted',
     ];
 
     /**
@@ -44,6 +46,60 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_whitelisted' => 'boolean',
         ];
+    }
+
+    /**
+     * Quick role helpers.
+     */
+    public function isProfessor(): bool
+    {
+        return $this->role === 'professor';
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->role !== 'professor';
+    }
+
+    /**
+     * Classrooms created by this professor.
+     */
+    public function classrooms()
+    {
+        return $this->hasMany(Classroom::class, 'professor_id');
+    }
+
+    /**
+     * Students this professor has whitelisted.
+     */
+    public function whitelistedStudents()
+    {
+        return $this->hasMany(WhitelistedStudent::class, 'professor_id');
+    }
+
+    /**
+     * Quizzes created by this professor.
+     */
+    public function quizzes()
+    {
+        return $this->hasMany(Quiz::class, 'professor_id');
+    }
+
+    /**
+     * Live quiz sessions hosted by this professor.
+     */
+    public function hostedQuizSessions()
+    {
+        return $this->hasMany(QuizSession::class, 'professor_id');
+    }
+
+    /**
+     * Live sessions this student participates in.
+     */
+    public function sessionParticipants()
+    {
+        return $this->hasMany(SessionParticipant::class, 'student_id');
     }
 }

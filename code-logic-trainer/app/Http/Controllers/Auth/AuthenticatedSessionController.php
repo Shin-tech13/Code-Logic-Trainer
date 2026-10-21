@@ -28,7 +28,23 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('student.dashboard', absolute: false));
+        // Whitelist gate: block students not yet whitelisted by any professor.
+        $user = Auth::user();
+        if ($user->role !== 'professor' && ! $user->is_whitelisted) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'email' => 'Your account is not authorized yet. Please contact your professor to be added to the whitelist.',
+            ]);
+        }
+
+        $destination = $user->role === 'professor'
+            ? 'professor.dashboard'
+            : 'student.dashboard';
+
+        return redirect()->route($destination);
     }
 
     /**

@@ -1,7 +1,11 @@
 <?php
 
-test('the application returns a successful response', function () {
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+test('guests are redirected to login from the homepage', function () {
     $response = $this->get('/');
 
-    $response->assertStatus(200);
+    $response->assertRedirect(route('login'));
 });
