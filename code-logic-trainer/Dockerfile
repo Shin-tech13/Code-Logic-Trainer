@@ -13,6 +13,10 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg
 
+# Install Node.js (Required for building Vite assets)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -36,12 +40,16 @@ RUN sed -i 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf /etc/a
 # Enable Apache Rewrite Module
 RUN a2enmod rewrite
 
-# Install composer dependencies
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
+
+# Install Node dependencies and build Vite frontend assets
+RUN npm install && npm run build
 
 # Ensure storage and cache directories exist and set permissions
 RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html/public/build
 
 # Copy and configure entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
