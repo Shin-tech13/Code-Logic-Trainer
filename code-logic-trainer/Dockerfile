@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg
 
-# Install Node.js (Required for building Vite assets)
+# Install Node.js 20.x (Required to compile Vite assets)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
@@ -43,7 +43,7 @@ RUN a2enmod rewrite
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Install Node dependencies and build Vite frontend assets
+# Install Node dependencies and build Tailwind/Vite assets for production
 RUN npm install && npm run build
 
 # Ensure storage and cache directories exist and set permissions
