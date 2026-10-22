@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(CodeChallengeSeeder::class);
+
         // 1. Create a Default Professor Account
         $professor = User::firstOrCreate(
             ['email' => 'professor@codelogic.com'],

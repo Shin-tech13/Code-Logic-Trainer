@@ -1,5 +1,8 @@
 #!/bin/sh
 
+echo "Building frontend assets..."
+npm run build
+
 echo "Running database migrations..."
 php artisan migrate --force --seed
 

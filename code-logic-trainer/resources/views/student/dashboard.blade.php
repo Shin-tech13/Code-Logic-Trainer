@@ -7,6 +7,15 @@
     </style>
 
     <div class="max-w-3xl mx-auto py-10 px-6 bg-white shadow rounded-lg">
+        <div class="mb-6 rounded-lg border border-indigo-100 bg-indigo-50 p-5 text-left">
+            <h3 class="text-lg font-bold text-indigo-900">Want to practice writing code?</h3>
+            <p class="mt-1 text-sm text-indigo-800">Solve PHP challenges, run automated tests, and unlock badges.</p>
+            <a href="{{ route('student.challenges.index') }}"
+                class="mt-3 inline-block rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">
+                Explore Coding Challenges
+            </a>
+        </div>
+
         {{-- Generator --}}
         <div class="text-center py-8" x-data="{
             language: 'PHP',

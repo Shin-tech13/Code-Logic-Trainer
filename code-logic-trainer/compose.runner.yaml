@@ -1,0 +1,15 @@
+services:
+  code-runner:
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    environment:
+      PORT: 8080
+      CODE_RUNNER_TOKEN: ${CODE_RUNNER_TOKEN:?Set CODE_RUNNER_TOKEN to a random secret of at least 32 characters}
+      SANDBOX_IMAGE: code-logic-php-sandbox:1
+      MAX_CONCURRENT_RUNS: 3
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped

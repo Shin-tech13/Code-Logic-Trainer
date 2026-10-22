@@ -47,4 +47,9 @@ return [
         'api_url' => env('GEMINI_API_URL', 'https://generativelanguage.googleapis.com/v1beta/models'),
     ],
 
+    'code_runner' => [
+        'url' => env('CODE_RUNNER_URL'),
+        'token' => env('CODE_RUNNER_TOKEN'),
+    ],
+
 ];

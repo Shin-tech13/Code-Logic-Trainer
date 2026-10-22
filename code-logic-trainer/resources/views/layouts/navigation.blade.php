@@ -23,6 +23,9 @@
                         <x-nav-link :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')">
                             {{ __('Practice') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('student.challenges.index')" :active="request()->routeIs('student.challenges.*')">
+                            {{ __('Coding Challenges') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('student.live.join')" :active="request()->routeIs('student.live.*')">
                             {{ __('Join Live Quiz') }}
                         </x-nav-link>
@@ -97,6 +100,9 @@
             @else
                 <x-responsive-nav-link :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')">
                     {{ __('Practice') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('student.challenges.index')" :active="request()->routeIs('student.challenges.*')">
+                    {{ __('Coding Challenges') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('student.live.join')" :active="request()->routeIs('student.live.*')">
                     {{ __('Join Live Quiz') }}

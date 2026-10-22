@@ -7,6 +7,7 @@ use App\Http\Controllers\StudentLiveQuizController;
 use App\Http\Controllers\ProfessorQuizController;
 use App\Http\Controllers\ProfessorSessionController;
 use App\Http\Controllers\WhitelistController;
+use App\Http\Controllers\CodeChallengeController;
 use App\Http\Controllers\ProfileController;
 
 // Homepage Root Route (Smart Redirect)
@@ -56,6 +57,14 @@ Route::middleware(['auth', 'whitelisted'])->prefix('student')->name('student.')-
     Route::get('/quiz/{session}/play', [StudentQuizController::class, 'play'])->name('play');
     Route::post('/quiz/{session}/submit', [StudentQuizController::class, 'submit'])->name('quiz.submit');
     Route::get('/quiz/{session}/results', [StudentQuizController::class, 'results'])->name('results');
+
+    Route::middleware('student')->group(function () {
+        Route::get('/challenges', [CodeChallengeController::class, 'index'])->name('challenges.index');
+        Route::get('/challenges/{challenge}', [CodeChallengeController::class, 'show'])->name('challenges.show');
+        Route::post('/challenges/{challenge}/run', [CodeChallengeController::class, 'run'])
+            ->middleware('throttle:10,1')
+            ->name('challenges.run');
+    });
 });
 
 // ===================== STUDENT ROUTES (live quiz) =====================
