@@ -49,6 +49,7 @@ RUN npm install && npm run build
 # Ensure storage and cache directories exist and set permissions
 RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R u+rwX,g+rwX /var/www/html/storage /var/www/html/bootstrap/cache \
     && chown -R www-data:www-data /var/www/html/public/build
 
 # Copy and configure entrypoint script
