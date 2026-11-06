@@ -31,7 +31,8 @@ test('a student can access their own quiz session', function () {
 
     $this->actingAs($student)
         ->get(route('student.play', $session))
-        ->assertOk();
+        ->assertOk()
+        ->assertSee('00:10');
 });
 
 test('a student cannot access another students quiz session', function () {
@@ -60,6 +61,65 @@ test('a student can submit a score for their own quiz session', function () {
 
     expect($session->fresh()->score)->toBe(1)
         ->and($session->fresh()->status)->toBe('completed');
+});
+
+test('student quiz answer feedback is checked by the server after selection', function () {
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $session = createStudentQuizSession($student);
+    $question = $session->questions()->first();
+
+    $this->actingAs($student)
+        ->get(route('student.play', $session))
+        ->assertOk()
+        ->assertDontSee('Secret explanation');
+
+    $this->postJson(route('student.quiz.answer', $session), [
+        'question_id' => $question->id,
+        'answer' => 'Wrong',
+        'timed_out' => false,
+    ])
+        ->assertOk()
+        ->assertJsonPath('is_correct', false)
+        ->assertJsonPath('correct_answer', 'Correct')
+        ->assertJsonPath('explanation', 'Secret explanation');
+
+    $this->postJson(route('student.quiz.answer', $session), [
+        'question_id' => $question->id,
+        'answer' => 'Correct',
+        'timed_out' => false,
+    ])
+        ->assertOk()
+        ->assertJsonPath('is_correct', true)
+        ->assertJsonMissingPath('correct_answer')
+        ->assertJsonMissingPath('explanation');
+});
+
+test('timed-out student quiz answers are incorrect and shown in review', function () {
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $session = createStudentQuizSession($student);
+    $question = $session->questions()->first();
+
+    $this->actingAs($student)
+        ->postJson(route('student.quiz.answer', $session), [
+            'question_id' => $question->id,
+            'answer' => null,
+            'timed_out' => true,
+        ])
+        ->assertOk()
+        ->assertJsonPath('is_correct', false)
+        ->assertJsonPath('correct_answer', 'Correct');
+
+    $this->postJson(route('student.quiz.submit', $session), [
+        'answers' => [$question->id => \App\Http\Controllers\StudentQuizController::TIMEOUT_ANSWER],
+    ])
+        ->assertOk()
+        ->assertJsonPath('score', 0);
+
+    $this->get(route('student.results', $session))
+        ->assertOk()
+        ->assertSee('Time expired')
+        ->assertSee('Correct answer:')
+        ->assertSee('Secret explanation');
 });
 
 test('self-study answer matching ignores generated leading and trailing whitespace', function () {

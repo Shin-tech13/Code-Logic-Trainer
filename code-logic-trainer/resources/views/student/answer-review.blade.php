@@ -4,7 +4,9 @@
     @foreach ($questions as $index => $question)
         @php
             $selectedAnswer = $answers[$question->id] ?? null;
-            $isCorrect = $selectedAnswer === $question->correct_answer;
+            $timedOut = $selectedAnswer === \App\Http\Controllers\StudentQuizController::TIMEOUT_ANSWER;
+            $isCorrect = ! $timedOut
+                && trim((string) $selectedAnswer) === trim((string) $question->correct_answer);
         @endphp
 
         <article class="rounded-lg border p-5 {{ $isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50' }}">
@@ -18,7 +20,7 @@
 
             <p class="mt-3 {{ $isCorrect ? 'text-green-800' : 'text-red-800' }}">
                 <span class="font-semibold">Your answer:</span>
-                {{ $selectedAnswer ?? 'No answer submitted' }}
+                {{ $timedOut ? 'Time expired' : ($selectedAnswer ?? 'No answer submitted') }}
             </p>
 
             @unless ($isCorrect)

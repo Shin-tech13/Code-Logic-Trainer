@@ -58,9 +58,24 @@ class User extends Authenticatable
         return $this->role === 'professor';
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
     public function isStudent(): bool
     {
-        return $this->role !== 'professor';
+        return $this->role === 'student';
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(self::class, 'created_by_user_id');
+    }
+
+    public function createdUsers()
+    {
+        return $this->hasMany(self::class, 'created_by_user_id');
     }
 
     /**

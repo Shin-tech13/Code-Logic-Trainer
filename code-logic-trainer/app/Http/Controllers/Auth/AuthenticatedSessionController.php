@@ -30,7 +30,7 @@ class AuthenticatedSessionController extends Controller
 
         // Whitelist gate: block students not yet whitelisted by any professor.
         $user = Auth::user();
-        if ($user->role !== 'professor' && ! $user->is_whitelisted) {
+        if ($user->isStudent() && ! $user->is_whitelisted) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -40,9 +40,9 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        $destination = $user->role === 'professor'
-            ? 'professor.dashboard'
-            : 'student.dashboard';
+        $destination = $user->isAdmin()
+            ? 'users.index'
+            : ($user->isProfessor() ? 'professor.dashboard' : 'student.dashboard');
 
         return redirect()->route($destination);
     }

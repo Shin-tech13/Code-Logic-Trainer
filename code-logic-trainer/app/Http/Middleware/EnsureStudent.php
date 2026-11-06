@@ -11,7 +11,7 @@ class EnsureStudent
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Auth::check() || Auth::user()->role === 'professor') {
+        if (! Auth::check() || Auth::user()->isProfessor() || Auth::user()->isAdmin()) {
             abort(403, 'Only students can access this area.');
         }
 

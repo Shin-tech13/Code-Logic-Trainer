@@ -9,6 +9,7 @@ use App\Http\Controllers\ProfessorSessionController;
 use App\Http\Controllers\WhitelistController;
 use App\Http\Controllers\CodeChallengeController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AdminUserController;
 
 // Homepage Root Route (Smart Redirect)
 Route::get('/', function () {
@@ -16,17 +17,34 @@ Route::get('/', function () {
         return redirect()->route('login');
     }
 
-    return Auth::user()->role === 'professor'
+    if (Auth::user()->isAdmin()) {
+        return redirect()->route('users.index');
+    }
+
+    return Auth::user()->isProfessor()
         ? redirect()->route('professor.dashboard')
         : redirect()->route('student.dashboard');
 });
 
 // Catch default Breeze 'dashboard' redirect and send them to the right dashboard
 Route::get('/dashboard', function () {
-    return Auth::user()->role === 'professor'
+    if (Auth::user()->isAdmin()) {
+        return redirect()->route('users.index');
+    }
+
+    return Auth::user()->isProfessor()
         ? redirect()->route('professor.dashboard')
         : redirect()->route('student.dashboard');
 })->middleware(['auth'])->name('dashboard');
+
+Route::middleware(['auth', 'user-directory'])->prefix('users')->name('users.')->group(function () {
+    Route::get('/', [AdminUserController::class, 'index'])->name('index');
+});
+
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
+    Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+});
 
 // ===================== PROFESSOR ROUTES =====================
 Route::middleware(['auth', 'professor'])->prefix('professor')->name('professor.')->group(function () {
@@ -55,6 +73,7 @@ Route::middleware(['auth', 'whitelisted'])->prefix('student')->name('student.')-
     Route::get('/dashboard', [StudentQuizController::class, 'index'])->name('dashboard');
     Route::post('/quiz/generate', [StudentQuizController::class, 'generate'])->name('quiz.generate');
     Route::get('/quiz/{session}/play', [StudentQuizController::class, 'play'])->name('play');
+    Route::post('/quiz/{session}/answer', [StudentQuizController::class, 'answer'])->name('quiz.answer');
     Route::post('/quiz/{session}/submit', [StudentQuizController::class, 'submit'])->name('quiz.submit');
     Route::get('/quiz/{session}/results', [StudentQuizController::class, 'results'])->name('results');
 

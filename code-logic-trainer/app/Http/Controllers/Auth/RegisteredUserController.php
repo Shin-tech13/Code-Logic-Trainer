@@ -36,13 +36,19 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $whitelistEntry = \App\Models\WhitelistedStudent::where('email', $request->email)->first();
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            // Auto-whitelist if a professor already added this email.
-            'is_whitelisted' => \App\Models\WhitelistedStudent::where('email', $request->email)->exists(),
+            'role' => 'student',
+            'is_whitelisted' => $whitelistEntry !== null,
         ]);
+        if ($whitelistEntry) {
+            $user->createdBy()->associate($whitelistEntry->professor_id);
+            $user->save();
+        }
 
         event(new Registered($user));
 

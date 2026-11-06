@@ -21,6 +21,32 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## Initial administrator accounts
+
+The initial administrator seeder creates two admin accounts and requires unique credentials to be supplied through the local environment. Do not commit these values or use shared/default passwords.
+
+Set the following variables in the deployment environment or an untracked local `.env` file:
+
+```dotenv
+INITIAL_ADMIN_1_NAME="First Administrator"
+INITIAL_ADMIN_1_EMAIL="admin-one@example.com"
+INITIAL_ADMIN_1_PASSWORD="use-a-unique-password-of-at-least-12-characters"
+INITIAL_ADMIN_2_NAME="Second Administrator"
+INITIAL_ADMIN_2_EMAIL="admin-two@example.com"
+INITIAL_ADMIN_2_PASSWORD="use-another-unique-password-of-at-least-12-characters"
+```
+
+Then run the migrations and seeders:
+
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+The seeder is repeatable and will not reset existing admin passwords or create default accounts with shared passwords. After the initial setup, an admin can create professor and student accounts in the admin area. Professors can view the user directory and filter accounts by role or creator, but cannot create accounts there. Student accounts created by an admin are authorized to sign in; students who register themselves remain subject to the existing professor-whitelist process.
+
+Existing accounts keep working. Their creator appears as “System / public registration” unless there is a known creator association; future registrations from professor-whitelisted email addresses are attributed to the professor who added them.
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.

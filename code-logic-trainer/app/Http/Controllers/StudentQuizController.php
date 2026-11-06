@@ -13,6 +13,8 @@ use Throwable;
 
 class StudentQuizController extends Controller
 {
+    public const TIMEOUT_ANSWER = '__time_expired__';
+
     protected QuizGeneratorService $aiService;
 
     public function __construct(QuizGeneratorService $aiService)
@@ -139,6 +141,51 @@ class StudentQuizController extends Controller
     }
 
     /**
+     * Check one answer for the student-created quiz without exposing answers in the page.
+     */
+    public function answer(Request $request, QuizSession $session)
+    {
+        abort_unless($session->student_id === Auth::id(), 403);
+        abort_unless($session->status === 'active', 409, 'This quiz has already been submitted.');
+
+        $validated = $request->validate([
+            'question_id' => ['required', 'integer'],
+            'answer' => ['nullable', 'string', 'max:1000'],
+            'timed_out' => ['required', 'boolean'],
+        ]);
+
+        $question = $session->questions()->findOrFail($validated['question_id']);
+        $timedOut = $validated['timed_out'];
+        $answer = $validated['answer'];
+        $normalizedAnswer = trim((string) $answer);
+        $normalizedOptions = array_map(
+            static fn ($option) => trim((string) $option),
+            $question->options ?? []
+        );
+
+        if ($timedOut) {
+            abort_if($answer !== null && $normalizedAnswer !== '', 422, 'Timed-out answers cannot include a selected option.');
+        } elseif (! in_array($normalizedAnswer, $normalizedOptions, true)) {
+            abort(422, 'A submitted answer is not one of the available options.');
+        }
+
+        $isCorrect = ! $timedOut
+            && hash_equals(trim((string) $question->correct_answer), $normalizedAnswer);
+
+        $response = [
+            'success' => true,
+            'is_correct' => $isCorrect,
+        ];
+
+        if (! $isCorrect) {
+            $response['correct_answer'] = $question->correct_answer;
+            $response['explanation'] = $question->explanation;
+        }
+
+        return response()->json($response);
+    }
+
+    /**
      * Submit a quiz score.
      */
     public function submit(Request $request, QuizSession $session)
@@ -168,6 +215,10 @@ class StudentQuizController extends Controller
                 static fn ($option) => trim((string) $option),
                 $question->options ?? []
             );
+
+            if ($normalizedAnswer === self::TIMEOUT_ANSWER) {
+                continue;
+            }
 
             if (! in_array($normalizedAnswer, $normalizedOptions, true)) {
                 abort(422, 'A submitted answer is not one of the available options.');

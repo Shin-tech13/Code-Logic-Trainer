@@ -21,7 +21,11 @@ class EnsureStudentIsWhitelisted
             return redirect()->route('login');
         }
 
-        if ($user->role === 'professor') {
+        if ($user->isAdmin()) {
+            abort(403, 'This area is not available to administrators.');
+        }
+
+        if ($user->isProfessor()) {
             return $next($request);
         }
 
