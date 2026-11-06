@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use JsonException;
 use RuntimeException;
 
 class QuizGeneratorService
@@ -16,7 +17,7 @@ class QuizGeneratorService
     public function __construct()
     {
         $this->apiKey = config('services.groq.api_key') ?: env('GROQ_API_KEY');
-        $this->model  = config('services.groq.model')   ?: env('GROQ_MODEL', 'llama-3.3-70b-versatile');
+        $this->model  = config('services.groq.model')   ?: env('GROQ_MODEL', 'openai/gpt-oss-120b');
     }
 
     public function generateStudentQuiz(string $language, string $topic, int $count = 10): array
@@ -40,17 +41,10 @@ Requirements:
 1. Mix of code-tracing problems and core logical concepts.
 2. Every question must have exactly 4 choices in the options list.
 3. Explanation must state why the correct answer is right and why common traps are wrong.
-4. Respond with a single JSON array ONLY. No markdown fences. No intro text. No trailing text.
+4. Respond with one JSON object only, with the questions in a "questions" array. No markdown fences, intro text, or trailing text.
 
-Required Output Format (strict JSON array, nothing else):
-[
-  {
-    "question_text": "...",
-    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-    "correct_answer": "A. ...",
-    "explanation": "..."
-  }
-]
+Required Output Format (strict JSON object):
+{"questions":[{"question_text":"...","options":["A. ...","B. ...","C. ...","D. ..."],"correct_answer":"A. ...","explanation":"..."}]}
 PROMPT;
 
         try {
@@ -61,10 +55,11 @@ PROMPT;
                     'model'       => $this->model,
                     'temperature' => 0.7,
                     'max_tokens'  => 8192,
+                    'response_format' => ['type' => 'json_object'],
                     'messages'    => [
                         [
                             'role'    => 'system',
-                            'content' => 'You are a computer science quiz generator. You respond only with valid JSON arrays. No markdown, no explanation outside the JSON.',
+                            'content' => 'You are a computer science quiz generator. Return only a valid JSON object with a "questions" array. Do not include markdown or text outside the JSON object.',
                         ],
                         [
                             'role'    => 'user',
@@ -80,45 +75,76 @@ PROMPT;
         if (! $response->successful()) {
             $body = substr($response->body(), 0, 800);
             Log::error('Groq API error', ['status' => $response->status(), 'body' => $body]);
+
+            if ($response->json('error.code') === 'model_not_found') {
+                throw new RuntimeException(
+                    'Groq rejected the configured model. Set GROQ_MODEL in Render to an active model available to your Groq account, then redeploy.'
+                );
+            }
+
             throw new RuntimeException("Groq API returned HTTP {$response->status()}: {$body}");
         }
 
-        // Groq response: choices[0].message.content
-        $rawText = (string) $response->json('choices.0.message.content', '');
+        $finishReason = $response->json('choices.0.finish_reason');
+        if ($finishReason === 'length') {
+            throw new RuntimeException('Groq stopped before completing the quiz JSON. Please retry the quiz generation.');
+        }
 
-        if ($rawText === '') {
-            $finishReason = $response->json('choices.0.finish_reason');
+        $rawText = $response->json('choices.0.message.content');
+
+        if (! is_string($rawText) || trim($rawText) === '') {
             Log::error('Groq returned empty content', [
                 'finish_reason' => $finishReason,
-                'full_response' => $response->json(),
             ]);
             throw new RuntimeException('Groq returned an empty response. Finish reason: ' . ($finishReason ?? 'unknown'));
         }
 
-        // Strip markdown code fences if the model adds them anyway
-        $rawText = preg_replace('/^```(?:json)?\s*/i', '', trim($rawText));
-        $rawText = preg_replace('/\s*```$/', '', $rawText);
-
-        // Extract the JSON array
-        $start = strpos($rawText, '[');
-        $end   = strrpos($rawText, ']');
-
-        if ($start === false || $end === false || $end < $start) {
-            Log::error('Groq response has no JSON array', ['raw' => substr($rawText, 0, 1000)]);
-            throw new RuntimeException('Groq did not return a valid JSON array.');
+        $json = trim($rawText);
+        if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/is', $json, $matches) === 1) {
+            $json = trim($matches[1]);
         }
 
-        $json    = substr($rawText, $start, $end - $start + 1);
-        $decoded = json_decode($json, true);
-
-        if (! is_array($decoded) || json_last_error() !== JSON_ERROR_NONE) {
+        try {
+            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
             Log::error('Groq JSON parse failed', [
-                'error' => json_last_error_msg(),
-                'json'  => substr($json, 0, 1000),
+                'error' => $e->getMessage(),
+                'json' => substr($json, 0, 1000),
             ]);
-            throw new RuntimeException('Groq returned invalid JSON: ' . json_last_error_msg());
+            throw new RuntimeException('Groq returned invalid JSON: ' . $e->getMessage(), 0, $e);
         }
 
-        return $decoded;
+        if (! is_array($decoded) || ! isset($decoded['questions']) || ! is_array($decoded['questions'])) {
+            Log::error('Groq JSON response has an invalid structure', [
+                'json' => substr($json, 0, 1000),
+            ]);
+            throw new RuntimeException('Groq returned JSON without a questions array.');
+        }
+
+        $questions = $decoded['questions'];
+        if (count($questions) !== $count) {
+            throw new RuntimeException("Groq returned " . count($questions) . " questions; {$count} were requested. Please retry.");
+        }
+
+        foreach ($questions as $index => $question) {
+            if (! is_array($question)
+                || ! is_string($question['question_text'] ?? null)
+                || trim($question['question_text']) === ''
+                || ! is_array($question['options'] ?? null)
+                || count($question['options']) !== 4
+                || count(array_filter($question['options'], static fn ($option) => is_string($option) && trim($option) !== '')) !== 4
+                || ! is_string($question['correct_answer'] ?? null)
+                || ! in_array(trim($question['correct_answer']), array_map(
+                    static fn ($option) => is_string($option) ? trim($option) : '',
+                    $question['options']
+                ), true)
+                || ! is_string($question['explanation'] ?? null)
+                || trim($question['explanation']) === '') {
+                Log::error('Groq returned an invalid quiz question', ['question_index' => $index]);
+                throw new RuntimeException('Groq returned a malformed question. Please retry quiz generation.');
+            }
+        }
+
+        return $questions;
     }
 }

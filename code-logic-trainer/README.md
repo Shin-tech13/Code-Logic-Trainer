@@ -51,6 +51,10 @@ Existing accounts keep working. Their creator appears as “System / public regi
 
 ## Learning Laravel
 
+### Student AI quiz generation on Render
+
+Student-generated quizzes use Groq. In the Render web service's **Environment** settings, set `GROQ_API_KEY` and set `GROQ_MODEL` to an active model enabled for that key. The application default is `openai/gpt-oss-120b`. An explicit Render `GROQ_MODEL` value overrides the application default, so replace any stale value such as `llama-3.1-8b-instant`, then redeploy. After changing environment values, the container startup clears and rebuilds Laravel's configuration cache.
+
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
 If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
