@@ -15,16 +15,24 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
-            <div>
+        <div class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-4 py-10 sm:px-6">
+            <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-indigo-100/60 blur-3xl"></div>
+            <div class="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-violet-100/60 blur-3xl"></div>
+
+            <div class="relative z-10 mb-6 text-center">
                 <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
+                    <x-application-logo class="mx-auto h-14 w-14 fill-current text-indigo-600 transition hover:text-indigo-700" />
                 </a>
+                <p class="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-indigo-700">Code Logic Trainer</p>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
+            <div class="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-white/80 bg-white/95 px-6 py-8 shadow-xl shadow-slate-200/70 backdrop-blur sm:px-9 sm:py-9">
                 {{ $slot }}
             </div>
+
+            <p class="relative z-10 mt-6 text-center text-xs text-slate-500">
+                Learn, practice, and strengthen your coding logic.
+            </p>
         </div>
     </body>
 </html>
