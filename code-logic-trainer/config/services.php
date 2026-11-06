@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'groq' => [
+        'api_key' => env('GROQ_API_KEY'),
+        'model'   => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+    ],
+
     'ai' => [
         'api_key' => env('AI_API_KEY'),
         'api_url' => env('AI_API_URL'),
