@@ -38,20 +38,20 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
 RUN sed -i 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Enable Apache Rewrite Module
-RUN a2enmod rewrite
+# Enable Apache Rewrite & Headers Modules (Headers needed to forward HTTPS proxy headers)
+RUN a2enmod rewrite headers
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Install Node dependencies and build Tailwind/Vite assets for production
-RUN npm install && npm run build
+# Install Node dependencies and force fresh build of Tailwind/Vite assets for production
+RUN npm ci || npm install
+RUN npm run build
 
-# Ensure storage and cache directories exist and set permissions
-RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R u+rwX,g+rwX /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chown -R www-data:www-data /var/www/html/public/build
+# Ensure storage, cache, and public directories exist with full ownership permissions
+RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/build \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public \
+    && chmod -R u+rwX,g+rwX /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public
 
 # Copy and configure entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
