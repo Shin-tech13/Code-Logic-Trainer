@@ -157,32 +157,57 @@ test('admin login redirects to user management without student whitelist require
     ])->assertRedirect(route('users.index'));
 });
 
-test('initial admin seeder creates two independent admin accounts without exposing credentials', function () {
-    config(['initial_admins.accounts' => [
+test('default account seeder creates four hashed accounts idempotently', function () {
+    config(['default_accounts' => [
         [
-            'name' => 'First Admin',
-            'email' => 'first.admin@example.test',
+            'name' => 'Admin One',
+            'email' => 'admin1@codelogic.com',
+            'role' => 'admin',
             'password' => 'FirstUniquePassword123!',
         ],
         [
-            'name' => 'Second Admin',
-            'email' => 'second.admin@example.test',
+            'name' => 'Admin Two',
+            'email' => 'admin2@codelogic.com',
+            'role' => 'admin',
             'password' => 'SecondUniquePassword123!',
+        ],
+        [
+            'name' => 'Student User',
+            'email' => 'student@codelogic.com',
+            'role' => 'student',
+            'password' => 'StudentUniquePassword123!',
+        ],
+        [
+            'name' => 'Professor User',
+            'email' => 'professor@codelogic.com',
+            'role' => 'professor',
+            'password' => 'ProfessorUniquePassword123!',
         ],
     ]]);
 
-    app(\Database\Seeders\InitialAdminSeeder::class)->run();
-    app(\Database\Seeders\InitialAdminSeeder::class)->run();
+    app(\Database\Seeders\DatabaseSeeder::class)->run();
 
-    $first = User::where('email', 'first.admin@example.test')->firstOrFail();
-    $second = User::where('email', 'second.admin@example.test')->firstOrFail();
+    $first = User::where('email', 'admin1@codelogic.com')->firstOrFail();
+    $second = User::where('email', 'admin2@codelogic.com')->firstOrFail();
+    $student = User::where('email', 'student@codelogic.com')->firstOrFail();
+    $professor = User::where('email', 'professor@codelogic.com')->firstOrFail();
+    $studentPasswordHash = $student->password;
+
+    config(['default_accounts.2.password' => 'ChangedStudentPassword123!']);
+    app(\Database\Seeders\DatabaseSeeder::class)->run();
 
     expect($first->isAdmin())->toBeTrue()
         ->and($second->isAdmin())->toBeTrue()
         ->and($first->password)->not->toBe('FirstUniquePassword123!')
         ->and($second->password)->not->toBe('SecondUniquePassword123!')
+        ->and($student->isStudent())->toBeTrue()
+        ->and($student->is_whitelisted)->toBeTrue()
+        ->and($student->password)->toBe($studentPasswordHash)
+        ->and($professor->isProfessor())->toBeTrue()
         ->and(User::whereIn('email', [
-            'first.admin@example.test',
-            'second.admin@example.test',
-        ])->count())->toBe(2);
+            'admin1@codelogic.com',
+            'admin2@codelogic.com',
+            'student@codelogic.com',
+            'professor@codelogic.com',
+        ])->count())->toBe(4);
 });

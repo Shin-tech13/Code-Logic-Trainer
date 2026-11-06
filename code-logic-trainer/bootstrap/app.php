@@ -12,6 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+
+        $middleware->alias([
+            'professor' => \App\Http\Middleware\EnsureProfessor::class,
+            'student' => \App\Http\Middleware\EnsureStudent::class,
+            'whitelisted' => \App\Http\Middleware\EnsureStudentIsWhitelisted::class,
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'user-directory' => \App\Http\Middleware\EnsureUserDirectoryAccess::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
