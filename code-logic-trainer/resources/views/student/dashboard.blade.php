@@ -183,8 +183,8 @@
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <label for="document-count" class="auth-label">Question count <span class="font-normal text-[#A59EB8]">(optional)</span></label>
-                                <input id="document-count" type="number" x-model="count" min="0" max="50" class="auth-input mt-2" placeholder="Automatic">
-                                <p class="mt-1 text-xs text-[#A59EB8]">Blank or 0: generate up to 50.</p>
+                                <input id="document-count" type="number" x-model="count" min="0" max="150" class="auth-input mt-2" placeholder="Automatic">
+                                <p class="mt-1 text-xs text-[#A59EB8]">Blank or 0: generate up to 150. Fewer questions are returned when the source contains fewer.</p>
                             </div>
                             <div>
                                 <label for="document-format" class="auth-label">Question format</label>

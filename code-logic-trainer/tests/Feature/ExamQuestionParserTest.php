@@ -54,6 +54,38 @@ test('numbered exam parser rejects an answer key that cannot map every selected 
         ->toThrow(InvalidQuizOutputException::class);
 });
 
+test('numbered exam parser exposes safe rejection reason codes without including document text', function () {
+    $parser = app(ExamQuestionParser::class);
+    $cases = [
+        [
+            str_replace('Answer Key', 'Answers', sampleFiftyQuestionExam()),
+            'missing_answer_key',
+        ],
+        [
+            str_replace("1. A\n", "1: A\n", sampleFiftyQuestionExam()),
+            'answer_key_format_unrecognized',
+        ],
+        [
+            str_replace("D. Choice D for 1\n", '', sampleFiftyQuestionExam()),
+            'missing_or_invalid_choices',
+        ],
+        [
+            sampleFiftyQuestionExam()."\n51. A",
+            'answer_key_question_mismatch',
+        ],
+    ];
+
+    foreach ($cases as [$exam, $reasonCode]) {
+        try {
+            $parser->parse($exam, 50, 'multiple_choice');
+            test()->fail("Expected parser rejection: {$reasonCode}");
+        } catch (InvalidQuizOutputException $exception) {
+            expect($exception->reasonCode)->toBe($reasonCode)
+                ->and($exception->getMessage())->not->toContain('Choice A for 1');
+        }
+    }
+});
+
 test('numbered exam parser leaves unstructured material to the configured provider', function () {
     expect(app(ExamQuestionParser::class)->parse(
         'A lesson about loops without numbered questions.',

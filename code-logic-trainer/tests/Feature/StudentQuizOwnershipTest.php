@@ -284,7 +284,7 @@ test('student document generation stores its PDF and creates only its own format
     $this->mock(QuizGeneratorService::class, function ($mock) use ($generatedQuestion) {
         $mock->shouldReceive('generateDocumentQuizFromText')
             ->once()
-            ->with('Extracted course text.', null, 'fill_in_the_blank')
+            ->with('Extracted course text.', null, 'fill_in_the_blank', Mockery::type('string'))
             ->andReturn([$generatedQuestion]);
     });
 
@@ -311,4 +311,42 @@ test('student document generation stores its PDF and creates only its own format
         ->and($upload->professor_id)->toBeNull();
 
     Storage::disk('local')->assertExists($upload->file_path);
+});
+
+test('student document generation accepts a 150 question request without padding provider results', function () {
+    Storage::fake('local');
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $generatedQuestion = [
+        'question_text' => 'The PHP array loop is _____.',
+        'options' => [],
+        'question_type' => 'fill_in_the_blank',
+        'correct_answer' => 'foreach',
+        'accepted_answers' => ['foreach'],
+        'explanation' => 'foreach iterates over each item.',
+        'needs_review' => false,
+    ];
+
+    $this->mock(GeminiQuizService::class, function ($mock) {
+        $mock->shouldReceive('extractPdfText')->once()->andReturn('Extracted course text.');
+    });
+    $this->mock(QuizGeneratorService::class, function ($mock) use ($generatedQuestion) {
+        $mock->shouldReceive('generateDocumentQuizFromText')
+            ->once()
+            ->with('Extracted course text.', 150, 'fill_in_the_blank', Mockery::type('string'))
+            ->andReturn([$generatedQuestion]);
+    });
+
+    $this->actingAs($student)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('student.quiz.generate.document'), [
+            'pdf' => UploadedFile::fake()->createWithContent('course.pdf', "%PDF-1.4\n%%EOF"),
+            'title' => 'PHP loops review',
+            'language' => 'PHP',
+            'count' => '150',
+            'quiz_format' => 'fill_in_the_blank',
+        ])
+        ->assertOk()
+        ->assertJsonPath('question_count', 1);
+
+    expect(QuizSession::query()->firstOrFail()->questions()->count())->toBe(1);
 });

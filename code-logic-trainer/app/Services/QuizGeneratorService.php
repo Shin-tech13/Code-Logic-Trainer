@@ -7,6 +7,7 @@ use App\Exceptions\InvalidQuizOutputException;
 use App\Exceptions\QuizProviderConfigurationException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 use RuntimeException;
 
@@ -33,13 +34,27 @@ class QuizGeneratorService
         string $sourceText,
         ?int $count = null,
         string $format = 'multiple_choice',
+        ?string $requestId = null,
     ): array {
         if (empty($this->apiKey)) {
             throw new QuizProviderConfigurationException('groq');
         }
 
-        $questionLimit = $count !== null && $count > 0 ? min($count, 50) : 50;
-        $parsedExam = app(ExamQuestionParser::class)->parse($sourceText, $count, $format);
+        $questionLimit = $count !== null && $count > 0 ? min($count, 150) : 150;
+        try {
+            $parsedExam = app(ExamQuestionParser::class)->parse($sourceText, $count, $format);
+        } catch (InvalidQuizOutputException $exception) {
+            Log::channel('stderr')->warning('Local exam parsing rejected the document; using Groq generation.', [
+                'provider' => 'local_exam_parser',
+                'failure_stage' => 'exam_parse_fallback',
+                'exception_class' => $exception::class,
+                'rejection_reason' => $exception->reasonCode,
+                'extracted_text_empty' => trim($sourceText) === '',
+                'extracted_text_character_count' => mb_strlen($sourceText),
+                'request_id' => $requestId,
+            ]);
+            $parsedExam = null;
+        }
         if ($parsedExam !== null) {
             return $parsedExam;
         }
@@ -93,9 +108,6 @@ class QuizGeneratorService
             $questionLimit,
             'groq',
         );
-        if ($count !== null && $count > 0 && count($questions) !== $count) {
-            throw new InvalidQuizOutputException('groq');
-        }
 
         return $questions;
     }

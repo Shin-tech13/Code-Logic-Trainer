@@ -17,9 +17,9 @@ class DocumentQuizPromptBuilder
             throw new RuntimeException('The PDF did not contain readable study material.');
         }
 
-        $questionLimit = $count !== null && $count > 0 ? min($count, 50) : 50;
+        $questionLimit = $count !== null && $count > 0 ? min($count, 150) : 150;
         $countInstructions = $count !== null && $count > 0
-            ? "Return exactly {$questionLimit} good questions, preserving source question order where possible. If fewer can be supported, do not invent questions."
+            ? "Return up to {$questionLimit} good questions, preserving source question order where possible. Return fewer when the source supports fewer; do not duplicate or invent questions."
             : "Automatically return as many good, non-duplicate questions as the source supports, up to {$questionLimit}.";
 
         $formatInstructions = $format === 'multiple_choice'

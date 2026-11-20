@@ -137,7 +137,7 @@
                     <div>
                         <label for="quiz-count" class="auth-label">Number of questions <span class="font-normal text-[#A59EB8]">(optional)</span></label>
                         <input id="quiz-count" type="number" x-model="count" min="0" max="40" class="auth-input mt-2" placeholder="Automatic">
-                        <p class="mt-2 text-xs text-[#A59EB8]">Leave blank or enter 0 for automatic count. Positive values are capped at 50.</p>
+                        <p class="mt-2 text-xs text-[#A59EB8]">Leave blank or enter 0 for automatic count. Positive values are capped at 150.</p>
                     </div>
 
                     <div>

@@ -33,6 +33,10 @@ class ExamQuestionParser
         }
 
         if ($answerKeyLine === null) {
+            if ($this->hasNumberedMultipleChoiceItems($lines)) {
+                throw new InvalidQuizOutputException('local_exam_parser', 'missing_answer_key');
+            }
+
             return null;
         }
 
@@ -41,7 +45,7 @@ class ExamQuestionParser
             array_slice($lines, $answerKeyLine + 1),
         ));
         if ($answers === []) {
-            throw new InvalidQuizOutputException('local_exam_parser');
+            throw new InvalidQuizOutputException('local_exam_parser', 'answer_key_format_unrecognized');
         }
 
         $blocks = $this->questionBlocks(array_slice($lines, 0, $answerKeyLine));
@@ -54,7 +58,13 @@ class ExamQuestionParser
         }
 
         if (count($structured) < 2) {
-            throw new InvalidQuizOutputException('local_exam_parser');
+            throw new InvalidQuizOutputException('local_exam_parser', 'numbered_questions_not_recognized');
+        }
+
+        foreach (array_keys($answers) as $number) {
+            if (! array_key_exists($number, $structured)) {
+                throw new InvalidQuizOutputException('local_exam_parser', 'answer_key_question_mismatch');
+            }
         }
 
         $numbers = array_keys($structured);
@@ -62,24 +72,24 @@ class ExamQuestionParser
         $last = max($numbers);
         foreach (range($first, $last) as $number) {
             if (! array_key_exists($number, $structured)) {
-                throw new InvalidQuizOutputException('local_exam_parser');
+                throw new InvalidQuizOutputException('local_exam_parser', 'question_number_sequence_mismatch');
             }
         }
 
-        $limit = $count !== null && $count > 0 ? min($count, 50) : 50;
+        $limit = $count !== null && $count > 0 ? min($count, 150) : 150;
         $questions = [];
         foreach ($structured as $number => $question) {
             if (count($questions) >= $limit) {
                 break;
             }
             if (! isset($answers[$number])) {
-                throw new InvalidQuizOutputException('local_exam_parser');
+                throw new InvalidQuizOutputException('local_exam_parser', 'missing_answer_key_entry');
             }
 
             $answerIndex = ord($answers[$number]) - ord('A');
             $correctAnswer = $question['options'][$answerIndex] ?? null;
             if (! is_string($correctAnswer)) {
-                throw new InvalidQuizOutputException('local_exam_parser');
+                throw new InvalidQuizOutputException('local_exam_parser', 'answer_key_choice_out_of_range');
             }
 
             $questions[] = [
@@ -91,10 +101,6 @@ class ExamQuestionParser
                 'explanation' => 'No explanation provided.',
                 'needs_review' => false,
             ];
-        }
-
-        if ($count !== null && $count > 0 && count($questions) < min($count, 50)) {
-            throw new InvalidQuizOutputException('local_exam_parser');
         }
 
         return $questions;
@@ -110,7 +116,9 @@ class ExamQuestionParser
         $lineCounts = [];
         foreach ($lines as $line) {
             $normalized = mb_strtolower(trim($line), 'UTF-8');
-            if ($normalized !== '' && preg_match('/^\d{1,3}\s*[.)]|^[A-D]\s*[.)]/i', $normalized) !== 1) {
+            if ($normalized !== ''
+                && preg_match('/^\d{1,3}\s*[.)]|^[A-D]\s*[.)]/i', $normalized) !== 1
+                && $this->isRepeatedPageHeaderCandidate($normalized)) {
                 $lineCounts[$normalized] = ($lineCounts[$normalized] ?? 0) + 1;
             }
         }
@@ -119,7 +127,7 @@ class ExamQuestionParser
         foreach ($lines as $line) {
             $line = trim($line);
             $normalizedLine = mb_strtolower($line, 'UTF-8');
-            if ($this->isPageOrStudentDetail($line)) {
+            if ($this->isPageOrStudentDetail($line) || $this->isSectionOrInstruction($line)) {
                 continue;
             }
             if (($lineCounts[$normalizedLine] ?? 0) > 1) {
@@ -127,6 +135,9 @@ class ExamQuestionParser
             }
             if (preg_match('/^(\d{1,3})\s*[.)]\s*(.*)$/u', $line, $match) === 1) {
                 $currentNumber = (int) $match[1];
+                if (isset($blocks[$currentNumber])) {
+                    throw new InvalidQuizOutputException('local_exam_parser', 'duplicate_question_number');
+                }
                 $blocks[$currentNumber] = [$match[2]];
 
                 continue;
@@ -153,7 +164,7 @@ class ExamQuestionParser
                 $label = strtoupper($match[1]);
                 $index = ord($label) - ord('A');
                 if (isset($options[$index])) {
-                    throw new InvalidQuizOutputException('local_exam_parser');
+                    throw new InvalidQuizOutputException('local_exam_parser', 'duplicate_choice_label');
                 }
                 $options[$index] = $label.'. '.trim($match[2]);
                 $currentOption = $index;
@@ -169,20 +180,24 @@ class ExamQuestionParser
         }
 
         if ($options === []) {
+            if (array_filter($questionParts, fn (string $part) => trim($part) !== '')) {
+                throw new InvalidQuizOutputException('local_exam_parser', 'missing_choices');
+            }
+
             return null;
         }
         if (count($options) !== 4 || array_keys($options) !== [0, 1, 2, 3]) {
-            throw new InvalidQuizOutputException('local_exam_parser');
+            throw new InvalidQuizOutputException('local_exam_parser', 'missing_or_invalid_choices');
         }
 
         $questionText = trim(implode(' ', array_filter($questionParts)));
         if ($questionText === '' || mb_strlen($questionText) > 3000) {
-            throw new InvalidQuizOutputException('local_exam_parser');
+            throw new InvalidQuizOutputException('local_exam_parser', 'empty_or_oversized_question');
         }
 
         foreach ($options as $option) {
             if (mb_strlen($option) > 500) {
-                throw new InvalidQuizOutputException('local_exam_parser');
+                throw new InvalidQuizOutputException('local_exam_parser', 'oversized_choice');
             }
         }
 
@@ -201,11 +216,23 @@ class ExamQuestionParser
         $text = implode("\n", $lines);
         preg_match_all('/(?:^|\s)(\d{1,3})\s*[.)-]?\s*([A-D])(?=\s|[,;]|$)/iu', $text, $matches, PREG_SET_ORDER);
         $answers = [];
+        foreach ($lines as $line) {
+            preg_match_all('/(?:^|\s)(\d{1,3})\s*[.)-]?\s*([A-D])(?=\s|[,;]|$)/iu', $line, $lineMatches);
+            if (preg_match('/^\s*\d{1,3}\b/u', $line) === 1
+                && preg_match('/\b[A-D]\b/i', $line) === 1
+                && count($lineMatches[0]) === 0) {
+                throw new InvalidQuizOutputException('local_exam_parser', 'answer_key_format_unrecognized');
+            }
+        }
+
         foreach ($matches as $match) {
             $number = (int) $match[1];
             $letter = strtoupper($match[2]);
             if (isset($answers[$number]) && $answers[$number] !== $letter) {
-                throw new InvalidQuizOutputException('local_exam_parser');
+                throw new InvalidQuizOutputException('local_exam_parser', 'ambiguous_answer_key_mapping');
+            }
+            if (isset($answers[$number])) {
+                throw new InvalidQuizOutputException('local_exam_parser', 'duplicate_answer_key_entry');
             }
             $answers[$number] = $letter;
         }
@@ -217,5 +244,34 @@ class ExamQuestionParser
     {
         return $line === ''
             || preg_match('/^(?:page\s+\d+(?:\s+of\s+\d+)?|\d+\s*\/\s*\d+|name\s*:.*|student\s*(?:name|id)\s*:.*|date\s*:.*|section\s*:.*)\s*$/i', $line) === 1;
+    }
+
+    /**
+     * @param  array<int, string>  $lines
+     */
+    private function hasNumberedMultipleChoiceItems(array $lines): bool
+    {
+        $numbered = 0;
+        $choiceLabels = [];
+        foreach ($lines as $line) {
+            if (preg_match('/^\s*\d{1,3}\s*[.)]\s*\S/u', $line) === 1) {
+                $numbered++;
+            }
+            if (preg_match('/^\s*([A-D])\s*[.)]\s*\S/iu', $line, $match) === 1) {
+                $choiceLabels[strtoupper($match[1])] = true;
+            }
+        }
+
+        return $numbered >= 2 && count($choiceLabels) >= 3;
+    }
+
+    private function isSectionOrInstruction(string $line): bool
+    {
+        return preg_match('/^(?:section\b|part\s+[ivx0-9]+\b|instructions?\b|directions?\b|choose\b|select\b|write\s+your\b|shade\s+the\b|encircle\b|multiple[- ]choice\b|true\s+or\s+false\b)/i', trim($line)) === 1;
+    }
+
+    private function isRepeatedPageHeaderCandidate(string $line): bool
+    {
+        return preg_match('/^(?:page\s+\d+|code\s+logic\s+trainer|.*\b(?:exam|quiz|test)\b.*)$/i', $line) === 1;
     }
 }

@@ -120,8 +120,8 @@ class GeminiQuizService
         $this->ensureApiKey();
 
         $questionLimit = $count !== null && $count > 0
-            ? min($count, 50)
-            : 50;
+            ? min($count, 150)
+            : 150;
         $prompt = $this->promptBuilder->build($sourceText, $count, $format);
 
         $raw = $this->request('generateContent', [

@@ -142,7 +142,7 @@ class StudentQuizController extends Controller
                 'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
                 'title' => ['required', 'string', 'max:255'],
                 'language' => ['required', 'string', 'in:PHP,JavaScript,Python,Java'],
-                'count' => ['nullable', 'integer', 'min:0', 'max:50'],
+                'count' => ['nullable', 'integer', 'min:0', 'max:150'],
                 'quiz_format' => ['required', 'in:multiple_choice,fill_in_the_blank'],
             ]);
 
@@ -180,6 +180,7 @@ class StudentQuizController extends Controller
                     ? (int) $validated['count']
                     : null,
                 $validated['quiz_format'],
+                $requestId,
             );
 
             $failureStage = 'persistence';
@@ -241,6 +242,7 @@ class StudentQuizController extends Controller
                 'underlying_exception_class' => $e->getPrevious() ? $e->getPrevious()::class : null,
                 'http_status' => $e instanceof QuizProviderException ? $e->httpStatus : null,
                 'provider_error_code' => $e instanceof QuizProviderException ? $e->providerErrorCode : null,
+                'rejection_reason' => $e instanceof InvalidQuizOutputException ? $e->reasonCode : null,
                 'extracted_text_empty' => $extractedText === null || trim($extractedText) === '',
                 'extracted_text_character_count' => $extractedText === null ? 0 : mb_strlen($extractedText),
                 'request_id' => $requestId,

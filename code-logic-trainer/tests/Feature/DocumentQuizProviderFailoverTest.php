@@ -206,3 +206,45 @@ test('Groq connection failures retain their underlying exception', function () {
         expect($exception->getPrevious())->toBeInstanceOf(ConnectionException::class);
     }
 });
+
+test('an inconclusive local exam parse logs only a reason code and falls back to Groq', function () {
+    config([
+        'services.groq.api_key' => 'groq-test-key',
+        'services.groq.model' => 'configured-groq-model',
+    ]);
+    $question = documentQuizQuestion();
+    Http::fake([
+        '*' => Http::response([
+            'choices' => [[
+                'finish_reason' => 'stop',
+                'message' => [
+                    'content' => json_encode(['questions' => [$question]]),
+                ],
+            ]],
+        ]),
+    ]);
+
+    $logger = Mockery::mock();
+    $logger->shouldReceive('warning')->once()->withArgs(function ($message, $context) {
+        expect($message)->toBe('Local exam parsing rejected the document; using Groq generation.')
+            ->and($context['provider'])->toBe('local_exam_parser')
+            ->and($context['failure_stage'])->toBe('exam_parse_fallback')
+            ->and($context['rejection_reason'])->toBe('missing_answer_key')
+            ->and($context['extracted_text_character_count'])->toBeGreaterThan(0);
+
+        return true;
+    });
+    Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
+
+    $questions = app(QuizGeneratorService::class)->generateDocumentQuizFromText(
+        "1. Question one?\nA. One\nB. Two\nC. Three\nD. Four\n2. Question two?\nA. One\nB. Two\nC. Three\nD. Four",
+        1,
+        'multiple_choice',
+        'request-correlation-test',
+    );
+
+    expect($questions)->toHaveCount(1)
+        ->and($questions[0]['correct_answer'])->toBe('A. True');
+
+    Http::assertSent(fn ($request) => $request['model'] === 'configured-groq-model');
+});

@@ -63,7 +63,7 @@ class ProfessorQuizController extends Controller
             $validated = $request->validate([
                 'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
                 'title' => ['required', 'string', 'max:255'],
-                'count' => ['nullable', 'integer', 'min:0', 'max:50'],
+                'count' => ['nullable', 'integer', 'min:0', 'max:150'],
                 'description' => ['nullable', 'string', 'max:1000'],
                 'quiz_format' => ['required', 'in:multiple_choice,fill_in_the_blank'],
                 'idempotency_key' => ['required', 'uuid'],
