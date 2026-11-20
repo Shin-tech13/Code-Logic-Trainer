@@ -183,8 +183,8 @@
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div>
                                 <label for="document-count" class="auth-label">Question count <span class="font-normal text-[#A59EB8]">(optional)</span></label>
-                                <input id="document-count" type="number" x-model="count" min="0" max="40" class="auth-input mt-2" placeholder="Automatic">
-                                <p class="mt-1 text-xs text-[#A59EB8]">Blank or 0: generate up to 40.</p>
+                                <input id="document-count" type="number" x-model="count" min="0" max="50" class="auth-input mt-2" placeholder="Automatic">
+                                <p class="mt-1 text-xs text-[#A59EB8]">Blank or 0: generate up to 50.</p>
                             </div>
                             <div>
                                 <label for="document-format" class="auth-label">Question format</label>
@@ -198,7 +198,7 @@
                         <div>
                             <label for="document-pdf" class="auth-label">PDF file</label>
                             <input id="document-pdf" type="file" x-ref="pdf" accept="application/pdf" required @change="selectPdf($event)" class="professor-file-input mt-2 block w-full" aria-describedby="student-pdf-guidance">
-                            <p id="student-pdf-guidance" class="mt-1 text-xs text-[#A59EB8]">PDF only · maximum 20 MB. Files are stored outside the public web directory and sent to the configured AI provider for processing.</p>
+                            <p id="student-pdf-guidance" class="mt-1 text-xs text-[#A59EB8]">PDF only · maximum 20 MB. Text is extracted locally when possible; if extraction requires a provider, Gemini may receive the PDF. Extracted text is sent to Groq for quiz generation. Review provider data-handling terms before uploading sensitive material.</p>
                             <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-violet-100" aria-live="polite"><span class="font-semibold">Selected:</span> <span x-text="fileName"></span></p>
                         </div>
                         <button type="submit" :disabled="isGenerating" class="auth-primary-button inline-flex min-h-12 w-full items-center justify-center px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">

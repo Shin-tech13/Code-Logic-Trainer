@@ -1,14 +1,17 @@
 <?php
 
 use App\Exceptions\GeminiProviderException;
+use App\Exceptions\InvalidQuizOutputException;
 use App\Models\Quiz;
 use App\Models\UploadedFile as StoredUpload;
 use App\Models\User;
+use App\Services\DocumentQuizGenerationService;
 use App\Services\GeminiQuizService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -25,11 +28,13 @@ test('a professor can create a private source-backed fill-in-the-blank quiz with
         'needs_review' => false,
     ];
 
-    $this->mock(GeminiQuizService::class, function ($mock) use ($generatedQuestion) {
+    $this->mock(GeminiQuizService::class, function ($mock) {
         $mock->shouldReceive('extractPdfText')->once()->andReturn('Course text.');
-        $mock->shouldReceive('generateQuizFromText')
+    });
+    $this->mock(DocumentQuizGenerationService::class, function ($mock) use ($generatedQuestion) {
+        $mock->shouldReceive('generate')
             ->once()
-            ->with('Course text.', 'Array loops', null, 'fill_in_the_blank')
+            ->with('Course text.', null, 'fill_in_the_blank', Mockery::type('string'))
             ->andReturn([$generatedQuestion]);
     });
 
@@ -40,6 +45,7 @@ test('a professor can create a private source-backed fill-in-the-blank quiz with
             'title' => 'Array loops',
             'count' => '0',
             'quiz_format' => 'fill_in_the_blank',
+            'idempotency_key' => (string) Str::uuid(),
         ]);
 
     $response->assertOk()
@@ -84,13 +90,23 @@ test('professor generation logs only safe provider diagnostics to stderr', funct
     Storage::fake('local');
     $professor = User::factory()->create(['role' => 'professor']);
     $logger = Mockery::mock();
-    $logger->shouldReceive('error')
-        ->once()
-        ->with('PDF quiz generation failed.', [
-            'exception_class' => GeminiProviderException::class,
-            'provider_http_status' => 503,
-            'provider_error_code' => 'SERVICE_UNAVAILABLE',
-        ]);
+    $logger->shouldReceive('error')->once()->withArgs(function ($message, $context) {
+        expect($message)->toBe('PDF quiz generation failed.')
+            ->and($context)->toHaveKeys([
+                'provider',
+                'exception_class',
+                'provider_http_status',
+                'provider_error_code',
+                'request_id',
+            ])
+            ->and($context['provider'])->toBe('gemini')
+            ->and($context['exception_class'])->toBe(GeminiProviderException::class)
+            ->and($context['provider_http_status'])->toBe(503)
+            ->and($context['provider_error_code'])->toBe('SERVICE_UNAVAILABLE')
+            ->and(Str::isUuid($context['request_id']))->toBeTrue();
+
+        return true;
+    });
     Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
 
     $this->mock(GeminiQuizService::class, function ($mock) {
@@ -105,7 +121,78 @@ test('professor generation logs only safe provider diagnostics to stderr', funct
             'pdf' => UploadedFile::fake()->createWithContent('course.pdf', "%PDF-1.4\n%%EOF"),
             'title' => 'Test quiz',
             'quiz_format' => 'multiple_choice',
+            'idempotency_key' => (string) Str::uuid(),
         ])
         ->assertStatus(502)
-        ->assertJsonPath('message', 'Quiz generation could not be completed. Check the PDF and try again later.');
+        ->assertJsonPath('message', 'Quiz generation is temporarily unavailable. Please try again later.');
+});
+
+test('resubmitting the same idempotency key returns the existing quiz without generating another', function () {
+    Storage::fake('local');
+    $professor = User::factory()->create(['role' => 'professor']);
+    $requestData = [
+        'pdf' => UploadedFile::fake()->createWithContent('course.pdf', "%PDF-1.4\n%%EOF"),
+        'title' => 'Idempotent quiz',
+        'quiz_format' => 'multiple_choice',
+        'idempotency_key' => (string) Str::uuid(),
+    ];
+    $questions = [[
+        'question_text' => 'Which value is true?',
+        'options' => ['A. True', 'B. False', 'C. Null', 'D. Empty'],
+        'question_type' => 'multiple_choice',
+        'correct_answer' => 'A. True',
+        'accepted_answers' => [],
+        'explanation' => 'True is the boolean value.',
+        'needs_review' => false,
+    ]];
+
+    $this->mock(GeminiQuizService::class, function ($mock) {
+        $mock->shouldReceive('extractPdfText')->once()->andReturn('Course text.');
+    });
+    $this->mock(DocumentQuizGenerationService::class, function ($mock) use ($questions) {
+        $mock->shouldReceive('generate')
+            ->once()
+            ->andReturn($questions);
+    });
+
+    $first = $this->actingAs($professor)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('professor.quizzes.generate'), $requestData);
+    $first->assertOk()->assertJsonPath('success', true);
+
+    $second = $this->actingAs($professor)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('professor.quizzes.generate'), $requestData);
+    $second->assertOk()
+        ->assertExactJson($first->json());
+
+    expect(Quiz::query()->where('professor_id', $professor->id)->count())->toBe(1)
+        ->and(StoredUpload::query()->where('professor_id', $professor->id)->count())->toBe(1);
+});
+
+test('invalid AI output is not persisted', function () {
+    Storage::fake('local');
+    $professor = User::factory()->create(['role' => 'professor']);
+
+    $this->mock(GeminiQuizService::class, function ($mock) {
+        $mock->shouldReceive('extractPdfText')->once()->andReturn('Course text.');
+    });
+    $this->mock(DocumentQuizGenerationService::class, function ($mock) {
+        $mock->shouldReceive('generate')
+            ->once()
+            ->andThrow(new InvalidQuizOutputException('gemini'));
+    });
+
+    $this->actingAs($professor)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('professor.quizzes.generate'), [
+            'pdf' => UploadedFile::fake()->createWithContent('course.pdf', "%PDF-1.4\n%%EOF"),
+            'title' => 'Malformed quiz',
+            'quiz_format' => 'multiple_choice',
+            'idempotency_key' => (string) Str::uuid(),
+        ])
+        ->assertStatus(502)
+        ->assertJsonPath('message', 'The AI returned quiz data that could not be validated. Try a shorter or clearer PDF.');
+
+    expect(Quiz::query()->count())->toBe(0);
 });

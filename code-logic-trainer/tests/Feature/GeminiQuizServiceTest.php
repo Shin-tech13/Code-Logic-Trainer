@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\GeminiProviderException;
+use App\Exceptions\InvalidQuizOutputException;
 use App\Services\GeminiQuizService;
 use Illuminate\Support\Facades\Http;
 
@@ -73,7 +74,7 @@ test('document quiz generation supports fill-in-the-blank and limits positive co
         && $request['generationConfig']['maxOutputTokens'] === 8192);
 });
 
-test('automatic count drops duplicate and malformed model questions', function () {
+test('duplicate or malformed model questions reject the complete response', function () {
     fakeGeminiQuizResponse([
         [
             'question_text' => '  What is 1 + 1? ',
@@ -109,16 +110,12 @@ test('automatic count drops duplicate and malformed model questions', function (
         ],
     ]);
 
-    $questions = app(GeminiQuizService::class)->generateQuizFromText(
+    expect(fn () => app(GeminiQuizService::class)->generateQuizFromText(
         'Basic arithmetic',
         'Arithmetic',
         null,
         'multiple_choice',
-    );
-
-    expect($questions)->toHaveCount(2)
-        ->and($questions[0]['correct_answer'])->toBe('A. 2')
-        ->and($questions[0]['needs_review'])->toBeFalse();
+    ))->toThrow(InvalidQuizOutputException::class);
 });
 
 test('provider failures expose only the HTTP status and sanitized provider error code', function () {

@@ -2,14 +2,21 @@
 
 namespace App\Exceptions;
 
-use RuntimeException;
-
-class GeminiProviderException extends RuntimeException
+class GeminiProviderException extends QuizProviderException
 {
     public function __construct(
-        public readonly int $httpStatus,
-        public readonly ?string $providerErrorCode,
+        ?int $httpStatus,
+        ?string $providerErrorCode,
+        ?int $retryAfterSeconds = null,
+        ?\Throwable $previous = null,
     ) {
-        parent::__construct('The quiz service could not complete this request.');
+        parent::__construct(
+            'gemini',
+            $httpStatus,
+            $providerErrorCode,
+            $httpStatus === null || in_array($httpStatus, [429, 503], true),
+            $retryAfterSeconds,
+            $previous,
+        );
     }
 }

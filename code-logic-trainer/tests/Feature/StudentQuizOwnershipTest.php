@@ -1,10 +1,11 @@
 <?php
 
+use App\Http\Controllers\StudentQuizController;
 use App\Models\QuizSession;
-use App\Models\Question;
 use App\Models\UploadedFile as StoredUpload;
 use App\Models\User;
 use App\Services\GeminiQuizService;
+use App\Services\QuizGeneratorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -114,7 +115,7 @@ test('timed-out student quiz answers are incorrect and shown in review', functio
         ->assertJsonPath('correct_answer', 'Correct');
 
     $this->postJson(route('student.quiz.submit', $session), [
-        'answers' => [$question->id => \App\Http\Controllers\StudentQuizController::TIMEOUT_ANSWER],
+        'answers' => [$question->id => StudentQuizController::TIMEOUT_ANSWER],
     ])
         ->assertOk()
         ->assertJsonPath('score', 0);
@@ -277,11 +278,13 @@ test('student document generation stores its PDF and creates only its own format
         'needs_review' => false,
     ];
 
-    $this->mock(GeminiQuizService::class, function ($mock) use ($generatedQuestion) {
+    $this->mock(GeminiQuizService::class, function ($mock) {
         $mock->shouldReceive('extractPdfText')->once()->andReturn('Extracted course text.');
-        $mock->shouldReceive('generateQuizFromText')
+    });
+    $this->mock(QuizGeneratorService::class, function ($mock) use ($generatedQuestion) {
+        $mock->shouldReceive('generateDocumentQuizFromText')
             ->once()
-            ->with('Extracted course text.', 'PHP loops review', null, 'fill_in_the_blank')
+            ->with('Extracted course text.', null, 'fill_in_the_blank')
             ->andReturn([$generatedQuestion]);
     });
 

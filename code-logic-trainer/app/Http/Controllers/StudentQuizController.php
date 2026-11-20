@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InvalidQuizOutputException;
+use App\Exceptions\QuizProviderConfigurationException;
+use App\Exceptions\QuizProviderException;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
 use App\Models\UploadedFile as StoredUpload;
-use App\Exceptions\GeminiProviderException;
 use App\Services\GeminiQuizService;
 use App\Services\QuizGeneratorService;
 use Illuminate\Http\Request;
@@ -13,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -22,6 +25,7 @@ class StudentQuizController extends Controller
     public const TIMEOUT_ANSWER = '__time_expired__';
 
     protected QuizGeneratorService $aiService;
+
     protected GeminiQuizService $documentQuizService;
 
     public function __construct(QuizGeneratorService $aiService, GeminiQuizService $documentQuizService)
@@ -129,16 +133,20 @@ class StudentQuizController extends Controller
     {
         set_time_limit(300);
         $upload = null;
+        $requestId = (string) Str::uuid();
+        $failureStage = 'validation';
+        $extractedText = null;
 
         try {
             $validated = $request->validate([
                 'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
                 'title' => ['required', 'string', 'max:255'],
                 'language' => ['required', 'string', 'in:PHP,JavaScript,Python,Java'],
-                'count' => ['nullable', 'integer', 'min:0', 'max:40'],
+                'count' => ['nullable', 'integer', 'min:0', 'max:50'],
                 'quiz_format' => ['required', 'in:multiple_choice,fill_in_the_blank'],
             ]);
 
+            $failureStage = 'file_storage';
             $file = $request->file('pdf');
             $header = file_get_contents($file->getRealPath(), false, null, 0, 5);
             if ($file->getMimeType() !== 'application/pdf' || $header !== '%PDF-') {
@@ -159,16 +167,22 @@ class StudentQuizController extends Controller
                 'status' => 'pending',
             ]);
 
-            $text = $this->documentQuizService->extractPdfText(Storage::disk('local')->path($path));
-            $questionsData = $this->documentQuizService->generateQuizFromText(
-                $text,
-                $validated['title'],
+            $failureStage = 'pdf_extraction';
+            $extractedText = $this->documentQuizService->extractPdfText(Storage::disk('local')->path($path));
+            if (trim($extractedText) === '') {
+                throw new RuntimeException('The PDF did not contain extractable text.');
+            }
+
+            $failureStage = 'quiz_generation';
+            $questionsData = $this->aiService->generateDocumentQuizFromText(
+                $extractedText,
                 isset($validated['count']) && (int) $validated['count'] > 0
                     ? (int) $validated['count']
                     : null,
                 $validated['quiz_format'],
             );
 
+            $failureStage = 'persistence';
             $session = DB::transaction(function () use ($validated, $questionsData, $upload) {
                 $session = QuizSession::create([
                     'student_id' => Auth::id(),
@@ -208,15 +222,29 @@ class StudentQuizController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
-            Log::channel('stderr')->error('Student PDF quiz generation failed.', array_filter([
+            $provider = match (true) {
+                $e instanceof QuizProviderException,
+                $e instanceof QuizProviderConfigurationException,
+                $e instanceof InvalidQuizOutputException => $e->providerName,
+                $failureStage === 'pdf_extraction' => 'gemini',
+                $failureStage === 'quiz_generation' => 'groq',
+                default => null,
+            };
+            $failureStage = $e instanceof InvalidQuizOutputException
+                ? 'ai_output_parsing'
+                : $failureStage;
+
+            Log::channel('stderr')->error('Student PDF quiz generation failed.', [
+                'provider' => $provider,
+                'failure_stage' => $failureStage,
                 'exception_class' => $e::class,
-                'provider_http_status' => $e instanceof GeminiProviderException
-                    ? $e->httpStatus
-                    : null,
-                'provider_error_code' => $e instanceof GeminiProviderException
-                    ? $e->providerErrorCode
-                    : null,
-            ], static fn ($value) => $value !== null));
+                'underlying_exception_class' => $e->getPrevious() ? $e->getPrevious()::class : null,
+                'http_status' => $e instanceof QuizProviderException ? $e->httpStatus : null,
+                'provider_error_code' => $e instanceof QuizProviderException ? $e->providerErrorCode : null,
+                'extracted_text_empty' => $extractedText === null || trim($extractedText) === '',
+                'extracted_text_character_count' => $extractedText === null ? 0 : mb_strlen($extractedText),
+                'request_id' => $requestId,
+            ]);
 
             if ($upload) {
                 $upload->update(['status' => 'failed']);
@@ -224,7 +252,12 @@ class StudentQuizController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Quiz generation could not be completed. Check the PDF and try again later.',
+                'message' => match ($failureStage) {
+                    'pdf_extraction' => 'Text could not be extracted from this PDF. Try a searchable PDF and upload it again.',
+                    'ai_output_parsing' => 'The generated quiz could not be validated. Try a clearer PDF or fewer questions.',
+                    'quiz_generation' => 'Quiz generation is temporarily unavailable. Please try again later.',
+                    default => 'Quiz generation could not be completed. Check the PDF and try again later.',
+                },
             ], 502);
         }
     }
@@ -237,11 +270,12 @@ class StudentQuizController extends Controller
     {
         // Allow PHP to run for up to 3 minutes so the AI has time to generate 10 questions
         set_time_limit(180);
+        $requestId = (string) Str::uuid();
 
         try {
             $validated = $request->validate([
                 'language' => ['required', 'string', 'in:PHP,JavaScript,Python,Java'],
-                'topic'    => ['required', 'string', 'max:255'],
+                'topic' => ['required', 'string', 'max:255'],
             ]);
 
             // Call Gemini AI via your service
@@ -264,8 +298,8 @@ class StudentQuizController extends Controller
             $session = DB::transaction(function () use ($validated, $questionsData) {
                 $session = QuizSession::create([
                     'student_id' => Auth::id(), // FIXED: Changed user_id to student_id
-                    'language'   => $validated['language'],
-                    'topic'      => $validated['topic'],
+                    'language' => $validated['language'],
+                    'topic' => $validated['topic'],
                 ]);
 
                 foreach ($questionsData as $q) {
@@ -274,12 +308,12 @@ class StudentQuizController extends Controller
                     }
 
                     $session->questions()->create([
-                        'question_text'  => $q['question_text']  ?? '',
-                        'options'        => $q['options']        ?? [],
-                        'question_type'  => 'multiple_choice',
+                        'question_text' => $q['question_text'] ?? '',
+                        'options' => $q['options'] ?? [],
+                        'question_type' => 'multiple_choice',
                         'correct_answer' => $q['correct_answer'] ?? '',
                         'accepted_answers' => [],
-                        'explanation'    => $q['explanation']    ?? '',
+                        'explanation' => $q['explanation'] ?? '',
                     ]);
                 }
 
@@ -287,21 +321,20 @@ class StudentQuizController extends Controller
             });
 
             return response()->json([
-                'success'      => true,
+                'success' => true,
                 'redirect_url' => route('student.play', $session->id), // Redirects to the game
-                'session_id'   => $session->id,
+                'session_id' => $session->id,
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
-            Log::error('Quiz generation failed', [
-                'user_id' => Auth::id(),
-                'error'   => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
+            Log::channel('stderr')->error('Student quiz generation failed.', [
+                'exception_class' => $e::class,
+                'request_id' => $requestId,
             ]);
 
             return response()->json([
@@ -319,6 +352,7 @@ class StudentQuizController extends Controller
         abort_unless($session->student_id === Auth::id(), 403);
 
         $session->load('questions');
+
         return view('student.play', compact('session'));
     }
 
@@ -431,15 +465,15 @@ class StudentQuizController extends Controller
         }
 
         $session->update([
-            'score'  => $score,
+            'score' => $score,
             'status' => 'completed',
             'answers' => $answers,
         ]);
 
         return response()->json([
-            'success'      => true,
-            'score'        => $score,
-            'total'        => count($questionIds),
+            'success' => true,
+            'score' => $score,
+            'total' => count($questionIds),
             'redirect_url' => route('student.results', $session),
         ]);
     }

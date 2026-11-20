@@ -42,7 +42,7 @@
                                 this.progress = Math.min(98, this.progress + Math.max(0.2, remaining * 0.05));
                             }
                             if (this.progress >= 80) {
-                                this.statusMessage = 'Generating questions with Gemini AI...';
+                                this.statusMessage = 'Generating questions with the configured AI provider...';
                             } else if (this.progress >= 40) {
                                 this.statusMessage = 'Analyzing the PDF content...';
                             }
@@ -83,6 +83,7 @@
                             formData.append('description', this.description.trim());
                             formData.append('count', this.count || 0);
                             formData.append('quiz_format', this.quizFormat);
+                            formData.append('idempotency_key', @js($generationRequestId));
                             formData.append('_token', '{{ csrf_token() }}');
 
                             const response = await fetch('{{ route('professor.quizzes.generate') }}', {
@@ -118,7 +119,7 @@
                     </span>
                     <div>
                         <h2 id="create-quiz-heading" class="text-xl font-bold text-[#F8FAFC]">Create Quiz from PDF</h2>
-                        <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Upload course material and let Gemini AI create multiple-choice or fill-in-the-blank questions grounded in the document.</p>
+                        <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Upload course material to create multiple-choice or fill-in-the-blank questions grounded in the document.</p>
                     </div>
                 </div>
 
@@ -136,7 +137,7 @@
                     <div>
                         <label for="quiz-count" class="auth-label">Number of questions <span class="font-normal text-[#A59EB8]">(optional)</span></label>
                         <input id="quiz-count" type="number" x-model="count" min="0" max="40" class="auth-input mt-2" placeholder="Automatic">
-                        <p class="mt-2 text-xs text-[#A59EB8]">Leave blank or enter 0 for automatic count. Positive values are capped at 40.</p>
+                        <p class="mt-2 text-xs text-[#A59EB8]">Leave blank or enter 0 for automatic count. Positive values are capped at 50.</p>
                     </div>
 
                     <div>
@@ -152,7 +153,7 @@
                         <label for="quiz-pdf" class="auth-label">PDF file</label>
                         <input id="quiz-pdf" type="file" x-ref="pdf" accept="application/pdf" required @change="selectPdf($event)"
                             class="professor-file-input mt-2 block w-full" aria-describedby="pdf-guidance">
-                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-[#A59EB8]">PDF only · maximum 20 MB. Extracted text is sent to the configured Gemini AI service for quiz generation.</p>
+                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-[#A59EB8]">PDF only · maximum 20 MB. Text extraction is local when possible; if the parser cannot read the PDF, Gemini may receive it for extraction. Extracted text is normally sent to Gemini and may also be sent to Groq if Gemini is temporarily unavailable. Review each provider's current data-handling terms before uploading sensitive material.</p>
                         <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-violet-100" aria-live="polite">
                             <span class="font-semibold">Selected:</span> <span x-text="fileName"></span>
                             <span class="text-[#A59EB8]" x-text="fileSize ? ` · ${fileSize}` : ''"></span>
