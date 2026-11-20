@@ -2,8 +2,12 @@
 
 use App\Models\QuizSession;
 use App\Models\Question;
+use App\Models\UploadedFile as StoredUpload;
 use App\Models\User;
+use App\Services\GeminiQuizService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -197,4 +201,111 @@ test('quiz answer keys are not rendered to the student', function () {
         ->assertOk()
         ->assertDontSee('data-correct')
         ->assertDontSee('Secret explanation');
+});
+
+test('fill-in-the-blank student answers are graded case-insensitively and reviewed after submission', function () {
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $session = createStudentQuizSession($student);
+    $question = $session->questions()->first();
+    $question->update([
+        'question_text' => 'The PHP array loop is _____.',
+        'question_type' => 'fill_in_the_blank',
+        'options' => [],
+        'correct_answer' => 'foreach',
+        'accepted_answers' => ['foreach', 'for each'],
+        'explanation' => 'foreach iterates over each item.',
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.play', $session))
+        ->assertOk()
+        ->assertSee('Type your answer')
+        ->assertDontSee('foreach')
+        ->assertDontSee('foreach iterates');
+
+    $this->postJson(route('student.quiz.answer', $session), [
+        'question_id' => $question->id,
+        'answer' => ' FOREACH ',
+        'timed_out' => false,
+    ])->assertOk()->assertJsonPath('is_correct', true)->assertJsonMissingPath('correct_answer');
+
+    $this->postJson(route('student.quiz.submit', $session), [
+        'answers' => [$question->id => 'FOREACH'],
+    ])->assertOk()->assertJsonPath('score', 1);
+
+    $this->get(route('student.results', $session))
+        ->assertOk()
+        ->assertSee('Correct')
+        ->assertSee('FOREACH');
+});
+
+test('blank fill-in-the-blank answers are saved as unanswered and shown in review', function () {
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $session = createStudentQuizSession($student);
+    $question = $session->questions()->first();
+    $question->update([
+        'question_type' => 'fill_in_the_blank',
+        'options' => [],
+        'correct_answer' => 'foreach',
+        'accepted_answers' => ['foreach'],
+        'explanation' => '',
+    ]);
+
+    $this->actingAs($student)
+        ->postJson(route('student.quiz.submit', $session), [
+            'answers' => [$question->id => ''],
+        ])
+        ->assertOk()
+        ->assertJsonPath('score', 0);
+
+    $this->get(route('student.results', $session))
+        ->assertOk()
+        ->assertSee('No answer submitted')
+        ->assertSee('No explanation provided.');
+});
+
+test('student document generation stores its PDF and creates only its own formatted session', function () {
+    Storage::fake('local');
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $generatedQuestion = [
+        'question_text' => 'The PHP array loop is _____.',
+        'options' => [],
+        'question_type' => 'fill_in_the_blank',
+        'correct_answer' => 'foreach',
+        'accepted_answers' => ['foreach'],
+        'explanation' => 'foreach iterates over each item.',
+        'needs_review' => false,
+    ];
+
+    $this->mock(GeminiQuizService::class, function ($mock) use ($generatedQuestion) {
+        $mock->shouldReceive('extractPdfText')->once()->andReturn('Extracted course text.');
+        $mock->shouldReceive('generateQuizFromText')
+            ->once()
+            ->with('Extracted course text.', 'PHP loops review', null, 'fill_in_the_blank')
+            ->andReturn([$generatedQuestion]);
+    });
+
+    $response = $this->actingAs($student)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('student.quiz.generate.document'), [
+            'pdf' => UploadedFile::fake()->createWithContent('course.pdf', "%PDF-1.4\n%%EOF"),
+            'title' => 'PHP loops review',
+            'language' => 'PHP',
+            'count' => '0',
+            'quiz_format' => 'fill_in_the_blank',
+        ]);
+
+    $response->assertOk()
+        ->assertJsonPath('question_count', 1)
+        ->assertJsonPath('success', true);
+
+    $session = QuizSession::query()->firstOrFail();
+    $upload = StoredUpload::query()->firstOrFail();
+    expect($session->student_id)->toBe($student->id)
+        ->and($session->source_file_id)->toBe($upload->id)
+        ->and($session->quiz_format)->toBe('fill_in_the_blank')
+        ->and($upload->student_id)->toBe($student->id)
+        ->and($upload->professor_id)->toBeNull();
+
+    Storage::disk('local')->assertExists($upload->file_path);
 });

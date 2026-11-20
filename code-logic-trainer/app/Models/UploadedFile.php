@@ -11,6 +11,7 @@ class UploadedFile extends Model
 
     protected $fillable = [
         'professor_id',
+        'student_id',
         'classroom_id',
         'file_path',
         'original_name',
@@ -20,6 +21,11 @@ class UploadedFile extends Model
     public function professor()
     {
         return $this->belongsTo(User::class, 'professor_id');
+    }
+
+    public function student()
+    {
+        return $this->belongsTo(User::class, 'student_id');
     }
 
     public function classroom()

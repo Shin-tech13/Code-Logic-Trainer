@@ -19,6 +19,8 @@ class QuizSession extends Model
         'status', // active, completed, waiting, in_progress
         'quiz_code',
         'type', // self_study or live
+        'quiz_format',
+        'source_file_id',
         'started_at',
         'answers',
     ];
@@ -44,6 +46,11 @@ class QuizSession extends Model
     public function quiz()
     {
         return $this->belongsTo(Quiz::class);
+    }
+
+    public function sourceFile()
+    {
+        return $this->belongsTo(UploadedFile::class, 'source_file_id');
     }
 
     // The questions generated for this specific session

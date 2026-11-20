@@ -60,6 +60,19 @@ After the migration and deployment, verify login and role-based pages, set priva
 
 ### Student AI quiz generation on Render
 
+Professors and students can also generate document-based quizzes through Gemini. Set `GEMINI_API_KEY` and, if needed, `GEMINI_MODEL` in the server environment. A blank or zero question count requests automatic generation, up to 40 validated questions; requested counts must be between 1 and 40. Multiple-choice and fill-in-the-blank formats are supported. Fill-in-the-blank grading ignores case and repeated/leading/trailing whitespace but does not ignore punctuation. Malformed and duplicate AI questions are discarded; the quiz shows the actual saved question count. Student and professor AI generation is limited to three requests per user per minute.
+
+Uploaded PDFs are stored on Laravel's configured `local` disk (currently rooted at `storage/app/private`) and are not linked through the public storage symlink. Extracted document text is sent to the configured Gemini service for quiz generation. Review the provider's current data-handling terms before uploading sensitive material; this application does not configure or guarantee provider-side retention or training behavior. The application currently has no document-retention cleanup job, and deleting a quiz does not delete its source PDF. The professor quiz page marks questions for which the AI recommends review, but there is no question-editing or publishing-approval workflow; professors should verify flagged questions before starting a live session.
+
+The quiz-format migration adds nullable source-document ownership for student uploads and defaulted quiz/question format columns, so existing quiz and question rows remain multiple-choice and usable. Back up the target database, then apply migrations in the intended environment:
+
+```bash
+php artisan migrate
+```
+
+For a controlled production deployment, use `php artisan migrate --force` only after review and backup. Do not use `migrate:fresh` on an existing database. Existing PDFs and quiz data are not backfilled or deleted; the new student document association is used only for newly generated document quizzes.
+Rolling this migration back is blocked while student-owned PDF records exist, so preserve or explicitly handle those records before attempting a rollback.
+
 Student-generated quizzes use Groq. In the Render web service's **Environment** settings, set `GROQ_API_KEY` and set `GROQ_MODEL` to an active model enabled for that key. The application default is `openai/gpt-oss-120b`. An explicit Render `GROQ_MODEL` value overrides the application default, so replace any stale value such as `llama-3.1-8b-instant`, then redeploy. After changing environment values, the container startup clears and rebuilds Laravel's configuration cache.
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.

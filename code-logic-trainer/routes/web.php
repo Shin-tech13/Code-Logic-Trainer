@@ -70,7 +70,9 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
     Route::delete('/whitelist/{student}', [WhitelistController::class, 'destroy'])->name('whitelist.destroy');
 
     // PDF upload + AI quiz generation
-    Route::post('/quizzes/generate', [ProfessorQuizController::class, 'uploadAndGenerate'])->name('quizzes.generate');
+    Route::post('/quizzes/generate', [ProfessorQuizController::class, 'uploadAndGenerate'])
+        ->middleware('throttle:quiz-generation')
+        ->name('quizzes.generate');
     Route::get('/quizzes/{quiz}', [ProfessorQuizController::class, 'show'])->name('quizzes.show');
     Route::delete('/quizzes/{quiz}', [ProfessorQuizController::class, 'destroy'])->name('quizzes.destroy');
 
@@ -86,7 +88,12 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
 Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentQuizController::class, 'index'])->name('dashboard');
     Route::get('/history', [StudentQuizController::class, 'history'])->name('history');
-    Route::post('/quiz/generate', [StudentQuizController::class, 'generate'])->name('quiz.generate');
+    Route::post('/quiz/generate', [StudentQuizController::class, 'generate'])
+        ->middleware('throttle:quiz-generation')
+        ->name('quiz.generate');
+    Route::post('/quiz/generate-from-document', [StudentQuizController::class, 'generateFromDocument'])
+        ->middleware('throttle:quiz-generation')
+        ->name('quiz.generate.document');
     Route::get('/quiz/{session}/play', [StudentQuizController::class, 'play'])->name('play');
     Route::post('/quiz/{session}/answer', [StudentQuizController::class, 'answer'])->name('quiz.answer');
     Route::post('/quiz/{session}/submit', [StudentQuizController::class, 'submit'])->name('quiz.submit');

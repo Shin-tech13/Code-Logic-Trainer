@@ -16,6 +16,7 @@ class Quiz extends Model
         'source_file_id',
         'question_count',
         'status',
+        'quiz_format',
     ];
 
     public function professor()

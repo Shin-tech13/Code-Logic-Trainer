@@ -23,7 +23,8 @@
                 x-data="{
                     title: '',
                     description: '',
-                    count: 10,
+                    count: '',
+                    quizFormat: 'multiple_choice',
                     fileName: '',
                     fileSize: '',
                     isGenerating: false,
@@ -80,7 +81,8 @@
                             formData.append('pdf', fileInput.files[0]);
                             formData.append('title', this.title.trim());
                             formData.append('description', this.description.trim());
-                            formData.append('count', this.count);
+                            formData.append('count', this.count || 0);
+                            formData.append('quiz_format', this.quizFormat);
                             formData.append('_token', '{{ csrf_token() }}');
 
                             const response = await fetch('{{ route('professor.quizzes.generate') }}', {
@@ -91,12 +93,14 @@
 
                             const data = await response.json();
                             if (!response.ok || !data.success) {
-                                throw new Error(data.message || `Request failed (${response.status})`);
+                                const validationMessage = data.errors ? Object.values(data.errors).flat()[0] : null;
+                                throw new Error(validationMessage || data.message || `Request failed (${response.status})`);
                             }
 
                             this.stopProgress();
                             this.progress = 100;
-                            this.statusMessage = 'Quiz ready! Redirecting...';
+                            this.statusMessage = `${data.question_count} questions generated. Opening your quiz for review...`;
+                            await new Promise(resolve => setTimeout(resolve, 700));
                             window.location.href = data.redirect_url;
                         } catch (err) {
                             this.stopProgress();
@@ -114,7 +118,7 @@
                     </span>
                     <div>
                         <h2 id="create-quiz-heading" class="text-xl font-bold text-[#F8FAFC]">Create Quiz from PDF</h2>
-                        <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Upload course material and let Gemini AI generate a multiple-choice quiz.</p>
+                        <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Upload course material and let Gemini AI create multiple-choice or fill-in-the-blank questions grounded in the document.</p>
                     </div>
                 </div>
 
@@ -130,16 +134,25 @@
                     </div>
 
                     <div>
-                        <label for="quiz-count" class="auth-label">Number of questions</label>
-                        <input id="quiz-count" type="number" x-model.number="count" min="1" max="30" class="auth-input mt-2">
-                        <p class="mt-2 text-xs text-[#A59EB8]">Choose between 1 and 30 questions.</p>
+                        <label for="quiz-count" class="auth-label">Number of questions <span class="font-normal text-[#A59EB8]">(optional)</span></label>
+                        <input id="quiz-count" type="number" x-model="count" min="0" max="40" class="auth-input mt-2" placeholder="Automatic">
+                        <p class="mt-2 text-xs text-[#A59EB8]">Leave blank or enter 0 for automatic count. Positive values are capped at 40.</p>
+                    </div>
+
+                    <div>
+                        <label for="quiz-format" class="auth-label">Question format</label>
+                        <select id="quiz-format" x-model="quizFormat" class="auth-input mt-2">
+                            <option value="multiple_choice">Multiple choice</option>
+                            <option value="fill_in_the_blank">Fill in the blank</option>
+                        </select>
+                        <p class="mt-2 text-xs text-[#A59EB8]" x-text="quizFormat === 'multiple_choice' ? 'Four answer choices per question.' : 'Students enter a short answer; equivalent answers may be accepted.'"></p>
                     </div>
 
                     <div>
                         <label for="quiz-pdf" class="auth-label">PDF file</label>
                         <input id="quiz-pdf" type="file" x-ref="pdf" accept="application/pdf" required @change="selectPdf($event)"
                             class="professor-file-input mt-2 block w-full" aria-describedby="pdf-guidance">
-                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-[#A59EB8]">PDF only · maximum 20 MB</p>
+                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-[#A59EB8]">PDF only · maximum 20 MB. Extracted text is sent to the configured Gemini AI service for quiz generation.</p>
                         <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-violet-100" aria-live="polite">
                             <span class="font-semibold">Selected:</span> <span x-text="fileName"></span>
                             <span class="text-[#A59EB8]" x-text="fileSize ? ` · ${fileSize}` : ''"></span>

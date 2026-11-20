@@ -160,7 +160,7 @@ class StudentLiveQuizController extends Controller
 
         $validated = $request->validate([
             'answers' => ['required', 'array', 'min:1'],
-            'answers.*' => ['required', 'string', 'max:1000'],
+            'answers.*' => ['present', 'nullable', 'string', 'max:1000'],
         ]);
 
         $questions = $session->quiz->questions()->get();
@@ -175,19 +175,21 @@ class StudentLiveQuizController extends Controller
         $score = 0;
         foreach ($questions as $question) {
             $answer = $answers[$question->id] ?? null;
-            $normalizedAnswer = trim($answer);
+            $normalizedAnswer = trim((string) $answer);
             $normalizedOptions = array_map(
                 static fn ($option) => trim((string) $option),
                 $question->options ?? []
             );
 
-            if (! in_array($normalizedAnswer, $normalizedOptions, true)) {
+            if ($normalizedAnswer !== ''
+                && $question->question_type !== 'fill_in_the_blank'
+                && ! in_array($normalizedAnswer, $normalizedOptions, true)) {
                 abort(422, 'A submitted answer is not one of the available options.');
             }
 
             $answers[$question->id] = $normalizedAnswer;
 
-            if (hash_equals(trim((string) $question->correct_answer), $normalizedAnswer)) {
+            if ($question->isCorrectAnswer($normalizedAnswer)) {
                 $score++;
             }
         }

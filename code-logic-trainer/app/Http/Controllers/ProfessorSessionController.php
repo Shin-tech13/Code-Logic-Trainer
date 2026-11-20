@@ -38,6 +38,7 @@ class ProfessorSessionController extends Controller
             'professor_id' => Auth::id(),
             'status'       => 'waiting',
             'type'         => 'live',
+            'quiz_format'  => $quiz->quiz_format ?? 'multiple_choice',
             'quiz_code'    => $this->generateUniqueCode(),
             'score'        => 0,
         ]);

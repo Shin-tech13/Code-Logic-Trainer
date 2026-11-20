@@ -212,3 +212,55 @@ test('live quiz answer keys are not rendered to students', function () {
         ->assertDontSee('data-correct')
         ->assertDontSee('Secret live explanation');
 });
+
+test('live fill-in-the-blank answers are graded with case and whitespace normalization', function () {
+    $professor = User::factory()->create(['role' => 'professor']);
+    $student = User::factory()->create(['is_whitelisted' => true]);
+    $quiz = Quiz::create([
+        'professor_id' => $professor->id,
+        'title' => 'Fill-in-the-blank quiz',
+        'question_count' => 1,
+        'status' => 'ready',
+        'quiz_format' => 'fill_in_the_blank',
+    ]);
+    $session = QuizSession::create([
+        'quiz_id' => $quiz->id,
+        'professor_id' => $professor->id,
+        'status' => 'in_progress',
+        'type' => 'live',
+        'quiz_code' => 'QZ-FILL',
+    ]);
+    $question = $quiz->questions()->create([
+        'question_text' => 'A PHP array traversal keyword is _____.',
+        'options' => [],
+        'question_type' => 'fill_in_the_blank',
+        'correct_answer' => 'foreach',
+        'accepted_answers' => ['foreach', 'for each'],
+        'explanation' => 'foreach iterates over each array item.',
+    ]);
+    $participant = SessionParticipant::create([
+        'quiz_session_id' => $session->id,
+        'student_id' => $student->id,
+        'status' => 'joined',
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.live.take', $session))
+        ->assertOk()
+        ->assertSee('Type a short answer')
+        ->assertDontSee('foreach iterates');
+
+    $this->postJson(route('student.live.submit', $session), [
+        'answers' => [$question->id => ' FOR EACH '],
+    ])
+        ->assertOk()
+        ->assertJsonPath('score', 1);
+
+    expect($participant->fresh()->answers[$question->id])->toBe('FOR EACH');
+
+    $this->get(route('student.live.complete', $session))
+        ->assertOk()
+        ->assertSee('FOR EACH')
+        ->assertSee('Correct answer:')
+        ->assertSee('foreach iterates over each array item.');
+});

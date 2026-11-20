@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Services\QuizGeneratorService;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
+use App\Models\UploadedFile as StoredUpload;
+use App\Services\GeminiQuizService;
+use App\Services\QuizGeneratorService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 class StudentQuizController extends Controller
@@ -17,10 +21,12 @@ class StudentQuizController extends Controller
     public const TIMEOUT_ANSWER = '__time_expired__';
 
     protected QuizGeneratorService $aiService;
+    protected GeminiQuizService $documentQuizService;
 
-    public function __construct(QuizGeneratorService $aiService)
+    public function __construct(QuizGeneratorService $aiService, GeminiQuizService $documentQuizService)
     {
         $this->aiService = $aiService;
+        $this->documentQuizService = $documentQuizService;
     }
 
     /**
@@ -90,9 +96,7 @@ class StudentQuizController extends Controller
         $incorrect = $questions->filter(function ($question) use ($answers) {
             $answer = $answers[$question->id] ?? null;
 
-            return $answer === null
-                || $answer === self::TIMEOUT_ANSWER
-                || trim((string) $answer) !== trim((string) $question->correct_answer);
+            return ! $question->isCorrectAnswer($answer);
         })->map(function ($question) use ($answers) {
             $answer = $answers[$question->id] ?? null;
 
@@ -100,7 +104,7 @@ class StudentQuizController extends Controller
                 'question' => $question->question_text,
                 'answer' => $answer === self::TIMEOUT_ANSWER
                     ? 'Time expired'
-                    : ($answer ?? 'No answer submitted'),
+                    : (trim((string) $answer) !== '' ? $answer : 'No answer submitted'),
                 'correct_answer' => $question->correct_answer,
                 'explanation' => filled($question->explanation)
                     ? $question->explanation
@@ -115,6 +119,108 @@ class StudentQuizController extends Controller
             'total' => $questions->count(),
             'incorrect' => $incorrect,
         ];
+    }
+
+    /**
+     * Generate a self-study quiz from a privately stored student PDF.
+     */
+    public function generateFromDocument(Request $request)
+    {
+        set_time_limit(300);
+        $upload = null;
+
+        try {
+            $validated = $request->validate([
+                'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+                'title' => ['required', 'string', 'max:255'],
+                'language' => ['required', 'string', 'in:PHP,JavaScript,Python,Java'],
+                'count' => ['nullable', 'integer', 'min:0', 'max:40'],
+                'quiz_format' => ['required', 'in:multiple_choice,fill_in_the_blank'],
+            ]);
+
+            $file = $request->file('pdf');
+            $header = file_get_contents($file->getRealPath(), false, null, 0, 5);
+            if ($file->getMimeType() !== 'application/pdf' || $header !== '%PDF-') {
+                throw ValidationException::withMessages([
+                    'pdf' => 'The uploaded file must contain a valid PDF document.',
+                ]);
+            }
+
+            $path = $file->store('uploads/pdf', 'local');
+            if (! is_string($path) || $path === '') {
+                throw new RuntimeException('The PDF could not be stored.');
+            }
+
+            $upload = StoredUpload::create([
+                'student_id' => Auth::id(),
+                'file_path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'status' => 'pending',
+            ]);
+
+            $text = $this->documentQuizService->extractPdfText(Storage::disk('local')->path($path));
+            $questionsData = $this->documentQuizService->generateQuizFromText(
+                $text,
+                $validated['title'],
+                isset($validated['count']) && (int) $validated['count'] > 0
+                    ? (int) $validated['count']
+                    : null,
+                $validated['quiz_format'],
+            );
+
+            $session = DB::transaction(function () use ($validated, $questionsData, $upload) {
+                $session = QuizSession::create([
+                    'student_id' => Auth::id(),
+                    'language' => $validated['language'],
+                    'topic' => $validated['title'],
+                    'source_file_id' => $upload->id,
+                    'quiz_format' => $validated['quiz_format'],
+                ]);
+
+                foreach ($questionsData as $question) {
+                    $session->questions()->create([
+                        'question_text' => $question['question_text'],
+                        'options' => $question['options'],
+                        'question_type' => $question['question_type'],
+                        'correct_answer' => $question['correct_answer'],
+                        'accepted_answers' => $question['accepted_answers'],
+                        'explanation' => $question['explanation'],
+                        'needs_review' => $question['needs_review'],
+                    ]);
+                }
+
+                $upload->update(['status' => 'processed']);
+
+                return $session;
+            });
+
+            return response()->json([
+                'success' => true,
+                'question_count' => count($questionsData),
+                'redirect_url' => route('student.play', $session),
+                'session_id' => $session->id,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please correct the highlighted upload details.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            Log::error('Student PDF quiz generation failed.', [
+                'student_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($upload) {
+                $upload->update(['status' => 'failed']);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Quiz generation could not be completed. Check the PDF and try again later.',
+            ], 502);
+        }
     }
 
     /**
@@ -164,7 +270,9 @@ class StudentQuizController extends Controller
                     $session->questions()->create([
                         'question_text'  => $q['question_text']  ?? '',
                         'options'        => $q['options']        ?? [],
+                        'question_type'  => 'multiple_choice',
                         'correct_answer' => $q['correct_answer'] ?? '',
+                        'accepted_answers' => [],
                         'explanation'    => $q['explanation']    ?? '',
                     ]);
                 }
@@ -192,8 +300,8 @@ class StudentQuizController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
-            ], 500);
+                'message' => 'Quiz generation could not be completed. Please try again later.',
+            ], 502);
         }
     }
 
@@ -246,12 +354,13 @@ class StudentQuizController extends Controller
 
         if ($timedOut) {
             abort_if($answer !== null && $normalizedAnswer !== '', 422, 'Timed-out answers cannot include a selected option.');
+        } elseif ($question->question_type === 'fill_in_the_blank') {
+            // Free-text answers are checked against the stored accepted answers below.
         } elseif (! in_array($normalizedAnswer, $normalizedOptions, true)) {
             abort(422, 'A submitted answer is not one of the available options.');
         }
 
-        $isCorrect = ! $timedOut
-            && hash_equals(trim((string) $question->correct_answer), $normalizedAnswer);
+        $isCorrect = ! $timedOut && $question->isCorrectAnswer($normalizedAnswer);
 
         $response = [
             'success' => true,
@@ -276,7 +385,7 @@ class StudentQuizController extends Controller
 
         $validated = $request->validate([
             'answers' => ['required', 'array', 'min:1'],
-            'answers.*' => ['required', 'string', 'max:1000'],
+            'answers.*' => ['present', 'nullable', 'string', 'max:1000'],
         ]);
 
         $questions = $session->questions()->get();
@@ -291,7 +400,7 @@ class StudentQuizController extends Controller
         $score = 0;
         foreach ($questions as $question) {
             $answer = $answers[$question->id] ?? null;
-            $normalizedAnswer = trim($answer);
+            $normalizedAnswer = trim((string) $answer);
             $normalizedOptions = array_map(
                 static fn ($option) => trim((string) $option),
                 $question->options ?? []
@@ -301,13 +410,16 @@ class StudentQuizController extends Controller
                 continue;
             }
 
-            if (! in_array($normalizedAnswer, $normalizedOptions, true)) {
+            if ($normalizedAnswer !== self::TIMEOUT_ANSWER
+                && $question->question_type !== 'fill_in_the_blank'
+                && $normalizedAnswer !== ''
+                && ! in_array($normalizedAnswer, $normalizedOptions, true)) {
                 abort(422, 'A submitted answer is not one of the available options.');
             }
 
             $answers[$question->id] = $normalizedAnswer;
 
-            if (hash_equals(trim((string) $question->correct_answer), $normalizedAnswer)) {
+            if ($question->isCorrectAnswer($normalizedAnswer)) {
                 $score++;
             }
         }
