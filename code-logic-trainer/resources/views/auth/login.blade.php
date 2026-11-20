@@ -4,21 +4,21 @@
         <p class="mt-2 text-sm text-[#A59EB8]">Log in to continue your coding journey.</p>
     </header>
 
-    <x-auth-session-status class="mb-4 text-sm text-violet-200" :status="session('status')" />
+    <x-auth-session-status class="auth-session-status mb-5" :status="session('status')" />
 
     <form method="POST" action="{{ route('login') }}" class="space-y-5" x-data="{ loading: false }" x-on:submit="loading = true">
         @csrf
 
         <div>
-            <x-input-label for="email" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Email address')" />
-            <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="you@example.com" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2 text-sm text-rose-300" />
+            <x-input-label for="email" class="auth-label" :value="__('Email address')" />
+            <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="example@codelogic.com" />
+            <x-input-error :messages="$errors->get('email')" class="auth-input-error mt-2" />
         </div>
 
         <div x-data="{ visible: false }">
-            <x-input-label for="password" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Password')" />
+            <x-input-label for="password" class="auth-label" :value="__('Password')" />
             <div class="relative mt-2">
-                <x-text-input id="password" class="auth-input block w-full pr-12" x-bind:type="visible ? 'text' : 'password'"
+                <x-text-input id="password" class="auth-input auth-input--with-toggle block w-full" x-bind:type="visible ? 'text' : 'password'"
                     name="password" required autocomplete="current-password" placeholder="Enter your password" />
                 <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex items-center px-3 text-[#A59EB8] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B5CF6]" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password">
                     <svg x-show="!visible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
@@ -31,7 +31,7 @@
                     </svg>
                 </button>
             </div>
-            <x-input-error :messages="$errors->get('password')" class="mt-2 text-sm text-rose-300" />
+            <x-input-error :messages="$errors->get('password')" class="auth-input-error mt-2" />
         </div>
 
         <div class="flex items-center">

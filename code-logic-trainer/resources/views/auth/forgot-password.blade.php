@@ -1,22 +1,18 @@
 <x-guest-layout>
-    <header class="mb-6 text-center">
+    <header class="mb-7 text-center">
         <h1 class="text-2xl font-bold tracking-tight text-[#F8FAFC]">Reset your password</h1>
-        <p class="mt-2 text-sm text-[#A59EB8]">We’ll send a secure reset link to your email.</p>
+        <p class="mt-2 text-sm text-[#A59EB8]">Enter your email and we’ll send you a secure reset link.</p>
     </header>
 
-    <p class="mb-6 text-center text-sm leading-6 text-[#A59EB8]">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
-    </p>
-
-    <x-auth-session-status class="mb-4 text-sm text-violet-200" :status="session('status')" />
+    <x-auth-session-status class="auth-session-status mb-5" :status="session('status')" />
 
     <form method="POST" action="{{ route('password.email') }}" class="space-y-5" x-data="{ loading: false }" x-on:submit="loading = true">
         @csrf
 
         <div>
-            <x-input-label for="email" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Email')" />
-            <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="you@example.com" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2 text-sm text-rose-300" />
+            <x-input-label for="email" class="auth-label" :value="__('Email')" />
+            <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="example@codelogic.com" />
+            <x-input-error :messages="$errors->get('email')" class="auth-input-error mt-2" />
         </div>
 
         <x-primary-button class="auth-primary-button w-full justify-center" x-bind:disabled="loading">
@@ -31,7 +27,7 @@
         </x-primary-button>
     </form>
 
-    <p class="mt-7 border-t border-white/10 pt-5 text-center text-sm">
+    <p class="mt-6 border-t border-white/10 pt-4 text-center text-sm">
         <a class="auth-link font-semibold" href="{{ route('login') }}">{{ __('Back to login') }}</a>
     </p>
 </x-guest-layout>
