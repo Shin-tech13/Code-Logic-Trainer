@@ -366,6 +366,54 @@
     opacity: 0.8;
 }
 
+.history-attempt > summary::-webkit-details-marker {
+    display: none;
+}
+
+.history-attempt > summary:hover {
+    background: rgb(255 255 255 / 3%);
+}
+
+.history-attempt[open] .history-expand-label--closed,
+.history-attempt:not([open]) .history-expand-label--open {
+    display: none;
+}
+
+.history-shell button[aria-pressed='true'] {
+    border-color: rgb(196 181 253 / 55%);
+    background: rgb(139 92 246 / 18%);
+    color: #fff;
+}
+
+.history-shell nav[role='navigation'] a,
+.history-shell nav[role='navigation'] span {
+    border-color: rgb(255 255 255 / 12%);
+    background-color: rgb(26 19 43 / 76%);
+    color: #d8cfe8;
+}
+
+.history-shell nav[role='navigation'] a:hover {
+    background-color: rgb(139 92 246 / 15%);
+    color: #fff;
+}
+
+.history-shell nav[role='navigation'] span[aria-current='page'] {
+    border-color: rgb(167 139 250 / 50%);
+    background-color: rgb(124 58 237 / 28%);
+    color: #fff;
+}
+
+.history-shell nav[role='navigation'] span[aria-disabled='true'] {
+    color: #80778f;
+}
+
+.history-shell nav[role='navigation'] a:focus-visible,
+.history-shell button:focus-visible,
+.history-attempt > summary:focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 3px;
+}
+
 @keyframes orb-drift {
     0% {
         transform: translate3d(-1.5rem, -1rem, 0) scale(0.96);

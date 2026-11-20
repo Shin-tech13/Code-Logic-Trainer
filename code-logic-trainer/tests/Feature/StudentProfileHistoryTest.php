@@ -183,3 +183,93 @@ test('student history includes completed live quiz answers', function () {
         ->assertSee('Correct')
         ->assertSee('Review the lesson.');
 });
+
+test('student history summarizes attempts and safely formats fenced code in answer reviews', function () {
+    $student = User::factory()->create(['role' => 'student', 'is_whitelisted' => true]);
+    $session = QuizSession::create([
+        'student_id' => $student->id,
+        'language' => 'PHP',
+        'topic' => 'Loops',
+        'status' => 'completed',
+        'score' => 1,
+        'answers' => [],
+    ]);
+    $correctQuestion = $session->questions()->create([
+        'question_text' => "What does this print?\n```php\nprint('ready');\n```",
+        'options' => ['ready', 'done'],
+        'correct_answer' => 'ready',
+        'explanation' => "The output is:\n```text\nready\n```",
+    ]);
+    $incorrectQuestion = $session->questions()->create([
+        'question_text' => '<script>alert("unsafe")</script>',
+        'options' => ['A', 'B'],
+        'correct_answer' => 'A',
+        'explanation' => '<img src=x onerror=alert(1)>',
+    ]);
+    $session->update([
+        'answers' => [
+            $correctQuestion->id => 'ready',
+            $incorrectQuestion->id => 'B',
+        ],
+    ]);
+
+    $this->actingAs($student)
+        ->get(route('student.history'))
+        ->assertOk()
+        ->assertSee('Score: 1 / 2')
+        ->assertSee('Correct: 1')
+        ->assertSee('Incorrect: 1')
+        ->assertSee('Incorrect answers (1)')
+        ->assertSee('Review all answers (2)')
+        ->assertSee('<pre', false)
+        ->assertSee('print(&#039;ready&#039;);', false)
+        ->assertSee('&lt;script&gt;alert(&quot;unsafe&quot;)&lt;/script&gt;', false)
+        ->assertSee('&lt;img src=x onerror=alert(1)&gt;', false)
+        ->assertDontSee('<script>alert("unsafe")</script>', false)
+        ->assertDontSee('<img src=x onerror=alert(1)>', false);
+});
+
+test('student history filters attempts and paginates results', function () {
+    $student = User::factory()->create(['role' => 'student', 'is_whitelisted' => true]);
+
+    foreach (range(1, 12) as $number) {
+        $session = QuizSession::create([
+            'student_id' => $student->id,
+            'language' => 'PHP',
+            'topic' => "Topic {$number}",
+            'type' => 'self_study',
+            'status' => 'completed',
+            'score' => 0,
+        ]);
+        QuizSession::whereKey($session->id)->update([
+            'updated_at' => now()->subDays($number),
+        ]);
+    }
+
+    $this->actingAs($student)
+        ->get(route('student.history', [
+            'type' => 'self_study',
+            'date_from' => now()->subDays(10)->toDateString(),
+        ]))
+        ->assertOk()
+        ->assertSee('Topic 1')
+        ->assertSee('Topic 10')
+        ->assertDontSee('Topic 11')
+        ->assertDontSee('Topic 12');
+
+    $this->get(route('student.history', ['type' => 'self_study']))
+        ->assertOk()
+        ->assertSee('Topic 1')
+        ->assertSee('Topic 10')
+        ->assertDontSee('Topic 11')
+        ->assertSee('page=2', false);
+
+    $this->get(route('student.history', [
+        'type' => 'self_study',
+        'page' => 2,
+    ]))
+        ->assertOk()
+        ->assertSee('Topic 11')
+        ->assertSee('Topic 12')
+        ->assertDontSee('PHP: Topic 1</span>', false);
+});

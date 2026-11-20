@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -48,64 +49,113 @@ class StudentQuizController extends Controller
         return view('student.dashboard', compact('session'));
     }
 
-    public function history()
+    public function history(Request $request)
     {
         $studentId = Auth::id();
-        $history = collect();
+        $filters = $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'type' => ['nullable', Rule::in(['self_study', 'live'])],
+        ]);
+
+        $selfStudyAttempts = DB::table('quiz_sessions')
+            ->selectRaw("'self_study' as history_type")
+            ->addSelect('id as attempt_id', 'updated_at as taken_at', 'score', 'language', 'topic')
+            ->selectRaw('NULL as quiz_title')
+            ->where('student_id', $studentId)
+            ->where('type', 'self_study')
+            ->where('status', 'completed');
+
+        $liveAttempts = DB::table('session_participants as participants')
+            ->join('quiz_sessions as sessions', 'sessions.id', '=', 'participants.quiz_session_id')
+            ->join('quizzes', 'quizzes.id', '=', 'sessions.quiz_id')
+            ->selectRaw("'live' as history_type")
+            ->addSelect(
+                'participants.id as attempt_id',
+                'participants.updated_at as taken_at',
+                'participants.score',
+            )
+            ->selectRaw('NULL as language, NULL as topic, quizzes.title as quiz_title')
+            ->where('participants.student_id', $studentId)
+            ->where('participants.status', 'completed')
+            ->where('sessions.type', 'live');
+
+        $attemptsQuery = DB::query()
+            ->fromSub($selfStudyAttempts->unionAll($liveAttempts), 'history_attempts')
+            ->select('history_attempts.*');
+
+        if (! empty($filters['type'])) {
+            $attemptsQuery->where('history_type', $filters['type']);
+        }
+        if (! empty($filters['date_from'])) {
+            $attemptsQuery->whereDate('taken_at', '>=', $filters['date_from']);
+        }
+        if (! empty($filters['date_to'])) {
+            $attemptsQuery->whereDate('taken_at', '<=', $filters['date_to']);
+        }
+
+        $history = $attemptsQuery
+            ->orderByDesc('taken_at')
+            ->orderByDesc('attempt_id')
+            ->paginate(10)
+            ->withQueryString();
+
+        $selfStudyIds = $history->getCollection()
+            ->where('history_type', 'self_study')
+            ->pluck('attempt_id');
+        $liveParticipantIds = $history->getCollection()
+            ->where('history_type', 'live')
+            ->pluck('attempt_id');
 
         $selfStudySessions = QuizSession::query()
             ->with('questions')
-            ->where('student_id', $studentId)
-            ->where('type', 'self_study')
-            ->where('status', 'completed')
-            ->get();
-
-        foreach ($selfStudySessions as $session) {
-            $history->push($this->historyEntry(
-                title: trim(($session->language ?? '').': '.($session->topic ?? ''), ': '),
-                takenAt: $session->updated_at,
-                score: $session->score,
-                questions: $session->questions,
-                answers: $session->answers ?? [],
-            ));
-        }
-
+            ->whereIn('id', $selfStudyIds)
+            ->get()
+            ->keyBy('id');
         $liveParticipants = SessionParticipant::query()
             ->with('quizSession.quiz.questions')
-            ->where('student_id', $studentId)
-            ->where('status', 'completed')
-            ->get();
+            ->whereIn('id', $liveParticipantIds)
+            ->get()
+            ->keyBy('id');
 
-        foreach ($liveParticipants as $participant) {
-            $session = $participant->quizSession;
-            if (! $session || $session->type !== 'live' || ! $session->quiz) {
-                continue;
+        $history->getCollection()->transform(function ($attempt) use ($selfStudySessions, $liveParticipants) {
+            if ($attempt->history_type === 'self_study') {
+                $session = $selfStudySessions->get($attempt->attempt_id);
+
+                return $this->historyEntry(
+                    title: trim(($session->language ?? '').': '.($session->topic ?? ''), ': '),
+                    takenAt: $session->updated_at,
+                    score: $session->score,
+                    questions: $session->questions,
+                    answers: $session->answers ?? [],
+                    type: 'self_study',
+                );
             }
 
-            $history->push($this->historyEntry(
+            $participant = $liveParticipants->get($attempt->attempt_id);
+            $session = $participant->quizSession;
+
+            return $this->historyEntry(
                 title: $session->quiz->title,
                 takenAt: $participant->updated_at,
                 score: $participant->score,
                 questions: $session->quiz->questions,
                 answers: $participant->answers ?? [],
-            ));
-        }
+                type: 'live',
+            );
+        });
 
-        return view('student.history', [
-            'history' => $history->sortByDesc('taken_at')->values(),
-        ]);
+        return view('student.history', compact('history', 'filters'));
     }
 
-    private function historyEntry(string $title, $takenAt, int $score, $questions, array $answers): array
+    private function historyEntry(string $title, $takenAt, int $score, $questions, array $answers, string $type): array
     {
-        $incorrect = $questions->filter(function ($question) use ($answers) {
+        $reviewAnswers = $questions->values()->map(function ($question, $index) use ($answers) {
             $answer = $answers[$question->id] ?? null;
-
-            return ! $question->isCorrectAnswer($answer);
-        })->map(function ($question) use ($answers) {
-            $answer = $answers[$question->id] ?? null;
+            $isCorrect = $question->isCorrectAnswer($answer);
 
             return [
+                'number' => $index + 1,
                 'question' => $question->question_text,
                 'answer' => $answer === self::TIMEOUT_ANSWER
                     ? 'Time expired'
@@ -114,6 +164,7 @@ class StudentQuizController extends Controller
                 'explanation' => filled($question->explanation)
                     ? $question->explanation
                     : 'No explanation provided.',
+                'is_correct' => $isCorrect,
             ];
         })->values();
 
@@ -122,7 +173,10 @@ class StudentQuizController extends Controller
             'taken_at' => $takenAt,
             'score' => $score,
             'total' => $questions->count(),
-            'incorrect' => $incorrect,
+            'correct_count' => $reviewAnswers->where('is_correct', true)->count(),
+            'incorrect' => $reviewAnswers->where('is_correct', false)->values(),
+            'answers' => $reviewAnswers,
+            'type' => $type,
         ];
     }
 

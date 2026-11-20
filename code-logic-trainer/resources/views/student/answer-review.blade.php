@@ -16,20 +16,25 @@
                     {{ $isCorrect ? 'Correct' : 'Incorrect' }}
                 </span>
             </div>
-            <p class="mt-2 whitespace-pre-wrap text-[#E8E2F0]">{{ $question->question_text }}</p>
+            <x-quiz-content :content="$question->question_text" class="mt-3 text-[#E8E2F0]" />
 
-            <p class="mt-3 {{ $isCorrect ? 'text-emerald-100' : 'text-rose-100' }}">
-                <span class="font-semibold text-[#D8CFE8]">Your answer:</span>
-                {{ $timedOut ? 'Time expired' : ($isBlank ? 'No answer submitted' : $selectedAnswer) }}
-            </p>
+            <div class="mt-4">
+                <h5 class="mb-1 text-sm font-semibold text-[#D8CFE8]">Your answer:</h5>
+                <div class="rounded-lg border border-white/10 bg-black/10 p-3 {{ $isCorrect ? 'text-emerald-100' : 'text-rose-100' }}">
+                    <x-quiz-content :content="$timedOut ? 'Time expired' : ($isBlank ? 'No answer submitted' : $selectedAnswer)" />
+                </div>
+            </div>
 
-            <p class="mt-1 text-emerald-100">
-                <span class="font-semibold text-[#D8CFE8]">Correct answer:</span> {{ $question->correct_answer }}
-            </p>
+            <div class="mt-3">
+                <h5 class="mb-1 text-sm font-semibold text-[#D8CFE8]">Correct answer:</h5>
+                <div class="rounded-lg border border-emerald-300/15 bg-emerald-300/[0.04] p-3 text-emerald-100">
+                    <x-quiz-content :content="$question->correct_answer" />
+                </div>
+            </div>
 
-            <div class="mt-3 rounded-xl border border-white/10 bg-black/10 p-3 text-sm text-[#D8CFE8]">
-                <span class="font-semibold text-violet-200">Explanation:</span>
-                {{ filled($question->explanation) ? $question->explanation : 'No explanation provided.' }}
+            <div class="mt-3 rounded-xl border border-violet-300/15 bg-violet-300/[0.035] p-4 text-sm text-[#D8CFE8]">
+                <h5 class="mb-1 font-semibold text-violet-200">Explanation:</h5>
+                <x-quiz-content :content="filled($question->explanation) ? $question->explanation : 'No explanation provided.'" />
             </div>
         </article>
     @endforeach
