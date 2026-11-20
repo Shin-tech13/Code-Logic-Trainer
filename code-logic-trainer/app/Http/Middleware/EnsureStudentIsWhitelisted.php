@@ -10,8 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsureStudentIsWhitelisted
 {
     /**
-     * Block students whose email has not been whitelisted by a professor.
-     * Professors always pass through.
+     * Block approved students who have not been whitelisted by a professor.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -21,12 +20,8 @@ class EnsureStudentIsWhitelisted
             return redirect()->route('login');
         }
 
-        if ($user->isAdmin()) {
-            abort(403, 'This area is not available to administrators.');
-        }
-
-        if ($user->isProfessor()) {
-            return $next($request);
+        if (! $user->isApproved() || ! $user->isStudent()) {
+            abort(403, 'This account is not authorized to access the application.');
         }
 
         if (! $user->is_whitelisted) {

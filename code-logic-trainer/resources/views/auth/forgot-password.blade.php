@@ -10,7 +10,7 @@
         @csrf
 
         <div>
-            <x-input-label for="email" class="auth-label" :value="__('Email')" />
+            <x-input-label for="email" class="auth-label" :value="__('Code Logic login address')" />
             <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="example@codelogic.com" />
             <x-input-error :messages="$errors->get('email')" class="auth-input-error mt-2" />
         </div>

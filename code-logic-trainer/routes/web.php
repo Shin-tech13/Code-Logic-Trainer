@@ -17,6 +17,12 @@ Route::get('/', function () {
         return redirect()->route('login');
     }
 
+    abort_unless(
+        Auth::user()->isApproved() && in_array(Auth::user()->role, ['admin', 'professor', 'student'], true),
+        403,
+        'This account is not authorized to access the application.'
+    );
+
     if (Auth::user()->isAdmin()) {
         return redirect()->route('users.index');
     }
@@ -35,19 +41,22 @@ Route::get('/dashboard', function () {
     return Auth::user()->isProfessor()
         ? redirect()->route('professor.dashboard')
         : redirect()->route('student.dashboard');
-})->middleware(['auth'])->name('dashboard');
+})->middleware(['auth', 'account-approved'])->name('dashboard');
 
-Route::middleware(['auth', 'user-directory'])->prefix('users')->name('users.')->group(function () {
+Route::middleware(['auth', 'account-approved', 'user-directory'])->prefix('users')->name('users.')->group(function () {
     Route::get('/', [AdminUserController::class, 'index'])->name('index');
+    Route::post('/{user}/approve', [AdminUserController::class, 'approve'])->name('approve');
 });
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'account-approved', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users/create', [AdminUserController::class, 'create'])->name('users.create');
     Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
+    Route::patch('/users/{user}/role', [AdminUserController::class, 'updateRole'])->name('users.role.update');
+    Route::patch('/users/{user}/status', [AdminUserController::class, 'updateStatus'])->name('users.status.update');
 });
 
 // ===================== PROFESSOR ROUTES =====================
-Route::middleware(['auth', 'professor'])->prefix('professor')->name('professor.')->group(function () {
+Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor')->name('professor.')->group(function () {
     Route::get('/dashboard', [ProfessorQuizController::class, 'index'])->name('dashboard');
 
     // Student whitelist management
@@ -69,7 +78,7 @@ Route::middleware(['auth', 'professor'])->prefix('professor')->name('professor.'
 });
 
 // ===================== STUDENT ROUTES (self-study) =====================
-Route::middleware(['auth', 'whitelisted'])->prefix('student')->name('student.')->group(function () {
+Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentQuizController::class, 'index'])->name('dashboard');
     Route::post('/quiz/generate', [StudentQuizController::class, 'generate'])->name('quiz.generate');
     Route::get('/quiz/{session}/play', [StudentQuizController::class, 'play'])->name('play');
@@ -87,7 +96,7 @@ Route::middleware(['auth', 'whitelisted'])->prefix('student')->name('student.')-
 });
 
 // ===================== STUDENT ROUTES (live quiz) =====================
-Route::middleware(['auth', 'whitelisted'])->prefix('live')->name('student.live.')->group(function () {
+Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('live')->name('student.live.')->group(function () {
     Route::get('/join', [StudentLiveQuizController::class, 'join'])->name('join');
     Route::post('/join', [StudentLiveQuizController::class, 'joinSession'])->name('join.store');
     Route::get('/session/{session}/lobby', [StudentLiveQuizController::class, 'lobby'])->name('lobby');
@@ -98,7 +107,7 @@ Route::middleware(['auth', 'whitelisted'])->prefix('live')->name('student.live.'
 });
 
 // Profile Routes
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'account-approved'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

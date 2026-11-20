@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->alias([
+            'account-approved' => \App\Http\Middleware\EnsureAccountApproved::class,
             'professor' => \App\Http\Middleware\EnsureProfessor::class,
             'student' => \App\Http\Middleware\EnsureStudent::class,
             'whitelisted' => \App\Http\Middleware\EnsureStudentIsWhitelisted::class,

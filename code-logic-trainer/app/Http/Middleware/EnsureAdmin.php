@@ -11,7 +11,7 @@ class EnsureAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Auth::check() || ! Auth::user()->isAdmin()) {
+        if (! Auth::check() || ! Auth::user()->isApproved() || ! Auth::user()->isAdmin()) {
             abort(403, 'Only administrators can access this area.');
         }
 

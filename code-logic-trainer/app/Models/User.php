@@ -13,6 +13,12 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    protected $attributes = [
+        'role' => 'student',
+        'account_status' => 'approved',
+        'is_whitelisted' => false,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -21,9 +27,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'personal_email',
         'password',
-        'role',
-        'is_whitelisted',
     ];
 
     /**
@@ -34,6 +39,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'personal_email',
     ];
 
     /**
@@ -47,6 +53,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_whitelisted' => 'boolean',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -66,6 +73,16 @@ class User extends Authenticatable
     public function isStudent(): bool
     {
         return $this->role === 'student';
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->account_status === 'approved';
+    }
+
+    public function routeNotificationForMail($notification = null): ?string
+    {
+        return $this->personal_email;
     }
 
     public function createdBy()

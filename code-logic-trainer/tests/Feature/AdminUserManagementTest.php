@@ -8,11 +8,13 @@ uses(RefreshDatabase::class);
 
 test('admin can create professor and student accounts with trusted creator attribution', function () {
     $admin = User::factory()->create(['role' => 'admin']);
+    expect($admin->account_status)->toBe('approved')
+        ->and($admin->isApproved())->toBeTrue();
 
     $this->actingAs($admin)
         ->post(route('admin.users.store'), [
             'name' => 'New Professor',
-            'email' => 'professor.new@example.test',
+            'personal_email' => 'professor.new@example.test',
             'role' => 'professor',
             'password' => 'StrongPassword123!',
             'password_confirmation' => 'StrongPassword123!',
@@ -20,23 +22,26 @@ test('admin can create professor and student accounts with trusted creator attri
         ])
         ->assertRedirect(route('users.index'));
 
-    $professor = User::where('email', 'professor.new@example.test')->firstOrFail();
+    $professor = User::where('email', 'newprofessor@codelogic.com')->firstOrFail();
     expect($professor->role)->toBe('professor')
+        ->and($professor->personal_email)->toBe('professor.new@example.test')
+        ->and($professor->account_status)->toBe('approved')
         ->and($professor->created_by_user_id)->toBe($admin->id)
         ->and($professor->is_whitelisted)->toBeFalse();
 
     $this->actingAs($admin)
         ->post(route('admin.users.store'), [
             'name' => 'New Student',
-            'email' => 'student.new@example.test',
+            'personal_email' => 'student.new@example.test',
             'role' => 'student',
             'password' => 'StrongPassword123!',
             'password_confirmation' => 'StrongPassword123!',
         ])
         ->assertRedirect(route('users.index'));
 
-    $student = User::where('email', 'student.new@example.test')->firstOrFail();
+    $student = User::where('email', 'newstudent@codelogic.com')->firstOrFail();
     expect($student->role)->toBe('student')
+        ->and($student->personal_email)->toBe('student.new@example.test')
         ->and($student->created_by_user_id)->toBe($admin->id)
         ->and($student->is_whitelisted)->toBeTrue();
 });
@@ -68,27 +73,32 @@ test('only admins may create accounts and students cannot view the directory', f
         ->assertForbidden();
 });
 
-test('admin can only create professor or student roles', function () {
+test('admin can create an admin role with a private contact address', function () {
     $admin = User::factory()->create(['role' => 'admin']);
 
     $this->actingAs($admin)
-        ->from(route('admin.users.create'))
         ->post(route('admin.users.store'), [
-            'name' => 'Escalation Attempt',
-            'email' => 'admin.extra@example.test',
+            'name' => 'Additional Admin',
+            'personal_email' => 'admin.extra@example.test',
             'role' => 'admin',
             'password' => 'StrongPassword123!',
             'password_confirmation' => 'StrongPassword123!',
         ])
-        ->assertSessionHasErrors('role');
+        ->assertRedirect(route('users.index'));
 
-    expect(User::where('email', 'admin.extra@example.test')->exists())->toBeFalse();
+    $createdAdmin = User::where('email', 'additionaladmin@codelogic.com')->firstOrFail();
+    expect($createdAdmin->isAdmin())->toBeTrue()
+        ->and($createdAdmin->personal_email)->toBe('admin.extra@example.test');
 });
 
 test('admin and professor can filter the directory by role and creator', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $professor = User::factory()->create(['role' => 'professor']);
-    $student = User::factory()->create(['role' => 'student', 'is_whitelisted' => true]);
+    $student = User::factory()->create([
+        'role' => 'student',
+        'is_whitelisted' => true,
+        'personal_email' => 'private.student@example.test',
+    ]);
     $otherStudent = User::factory()->create(['role' => 'student', 'is_whitelisted' => true]);
     $student->createdBy()->associate($professor)->save();
 
@@ -97,6 +107,7 @@ test('admin and professor can filter the directory by role and creator', functio
         ->assertOk()
         ->assertSee($student->email)
         ->assertSee($professor->email)
+        ->assertDontSee('private.student@example.test')
         ->assertDontSee($otherStudent->email);
 
     $this->actingAs($professor)
@@ -123,7 +134,7 @@ test('directory filters reject invalid roles and creator ids', function () {
         ->assertSee($systemUser->email);
 });
 
-test('whitelisted student registration records the professor who added the email', function () {
+test('whitelisted student registration records the professor and remains pending approval', function () {
     $professor = User::factory()->create(['role' => 'professor']);
     WhitelistedStudent::create([
         'professor_id' => $professor->id,
@@ -134,14 +145,17 @@ test('whitelisted student registration records the professor who added the email
 
     $this->post(route('register'), [
         'name' => 'New Student',
-        'email' => 'registered.student@example.test',
+        'personal_email' => 'registered.student@example.test',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
-    ])->assertRedirect(route('dashboard'));
+    ])->assertRedirect(route('login'))
+        ->assertSessionHas('code_logic_login', 'newstudent@codelogic.com');
 
-    $student = User::where('email', 'registered.student@example.test')->firstOrFail();
+    $student = User::where('email', 'newstudent@codelogic.com')->firstOrFail();
     expect($student->created_by_user_id)->toBe($professor->id)
-        ->and($student->is_whitelisted)->toBeTrue();
+        ->and($student->is_whitelisted)->toBeTrue()
+        ->and($student->personal_email)->toBe('registered.student@example.test')
+        ->and($student->account_status)->toBe('pending');
 });
 
 test('admin login redirects to user management without student whitelist requirements', function () {
@@ -202,7 +216,7 @@ test('default account seeder creates four hashed accounts idempotently', functio
         ->and($second->password)->not->toBe('SecondUniquePassword123!')
         ->and($student->isStudent())->toBeTrue()
         ->and($student->is_whitelisted)->toBeTrue()
-        ->and($student->password)->toBe($studentPasswordHash)
+        ->and($student->fresh()->password)->toBe($studentPasswordHash)
         ->and($professor->isProfessor())->toBeTrue()
         ->and(User::whereIn('email', [
             'admin1@codelogic.com',

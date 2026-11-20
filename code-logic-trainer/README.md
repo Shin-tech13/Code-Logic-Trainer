@@ -36,18 +36,23 @@ DEFAULT_PROFESSOR_PASSWORD="a-unique-professor-password-of-at-least-12-character
 
 On Render, add these four variables in the web service's **Environment** settings before deploying. Use unique passwords of at least 12 characters; do not use `password123`.
 
-The seeded accounts are `admin1@codelogic.com` (Admin One), `admin2@codelogic.com` (Admin Two), `student@codelogic.com` (Student User), and `professor@codelogic.com` (Professor User). Passwords are hashed before storage. Seeding is repeatable and does not reset passwords for accounts that already exist. Student accounts created by the seeder are whitelisted.
+The seeded accounts are `admin1@codelogic.com` (Admin One), `admin2@codelogic.com` (Admin Two), `student@codelogic.com` (Student User), and `professor@codelogic.com` (Professor User). These are login names, not mailboxes. Passwords are hashed before storage. Seeding is repeatable and does not reset passwords for accounts that already exist. Student accounts created by the seeder are approved and whitelisted. Seeded users should add a private recovery email in their profile before relying on password recovery.
 
-The Docker container's `entrypoint.sh` runs migrations and seeders on startup. For a manual deployment:
+Public registration asks for a personal email address and password, then creates a pending student account with a generated `@codelogic.com` login address. The personal email is private and is used for account and password-recovery notifications. New login addresses are shown after registration and in the confirmation email. Professors and admins can review pending accounts in the user directory; professors may approve student accounts, while only admins can change roles or suspend accounts. Approval also authorizes the student for the existing whitelist gate. Removing a student from a professor's whitelist continues to revoke student access.
+
+Existing users keep their current email value as their login address, and the migration copies existing non-`@codelogic.com` addresses into the private recovery field. Existing `@codelogic.com` logins are not treated as mailboxes; those users need to set a recovery email in their profile.
+
+Before deploying the schema change, back up the production database. Then run the migration once against the intended database:
 
 ```bash
-php artisan migrate
-php artisan db:seed
+php artisan migrate --force
 ```
 
-After the initial setup, an admin can create professor and student accounts in the admin area. Professors can view the user directory and filter accounts by role or creator, but cannot create accounts there. Students who register themselves remain subject to the existing professor-whitelist process.
+Do not use `migrate:fresh` on an existing deployment. The existing Docker `entrypoint.sh` also runs migrations at startup; choose either that deployment path or a controlled manual migration, and do not point either at production until you have reviewed the migration and backup.
 
-Existing accounts keep working. Their creator appears as “System / public registration” unless there is a known creator association; future registrations from professor-whitelisted email addresses are attributed to the professor who added them.
+The application queues registration and approval notifications. Configure a real Laravel mail transport and sender address, then run a persistent queue worker (for example, `php artisan queue:work --tries=3`) in the deployment environment. The default mailer in `config/mail.php` is `log`, so real delivery is not enabled unless the deployment environment configures a mail transport. Password reset links expire after 60 minutes. Failed queue jobs should be monitored and retried after mail configuration issues are fixed.
+
+After the migration and deployment, verify login and role-based pages, set private recovery email addresses for existing accounts that do not have one, configure/verify mail delivery, and ensure the queue worker is running. The migration keeps existing accounts approved to avoid locking them out. Existing creator attribution remains unchanged; new registrations using a professor-whitelisted personal email are attributed to that professor.
 
 ## Learning Laravel
 

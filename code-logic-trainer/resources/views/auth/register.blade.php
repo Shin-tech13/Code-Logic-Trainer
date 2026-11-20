@@ -14,9 +14,9 @@
         </div>
 
         <div>
-            <x-input-label for="email" class="auth-label" :value="__('Email')" />
-            <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autocomplete="username" placeholder="example@codelogic.com" />
-            <x-input-error :messages="$errors->get('email')" class="auth-input-error mt-2" />
+            <x-input-label for="personal_email" class="auth-label" :value="__('Personal email address')" />
+            <x-text-input id="personal_email" class="auth-input mt-2 block w-full" type="email" name="personal_email" :value="old('personal_email')" required autocomplete="email" placeholder="example@codelogic.com" />
+            <x-input-error :messages="$errors->get('personal_email')" class="auth-input-error mt-2" />
         </div>
 
         <div x-data="{ visible: false }">

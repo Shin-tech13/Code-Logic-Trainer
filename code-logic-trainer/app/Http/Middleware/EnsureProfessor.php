@@ -11,7 +11,7 @@ class EnsureProfessor
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Auth::check() || Auth::user()->role !== 'professor') {
+        if (! Auth::check() || ! Auth::user()->isApproved() || ! Auth::user()->isProfessor()) {
             abort(403, 'Only professors can access this area.');
         }
 

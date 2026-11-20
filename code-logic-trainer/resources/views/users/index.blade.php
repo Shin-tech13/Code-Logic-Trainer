@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">User directory</h1>
-                <p class="mt-1 text-sm text-gray-600">View account roles and who created each account.</p>
+                <p class="mt-1 text-sm text-gray-600">Review pending accounts, account roles, and who created each account.</p>
             </div>
             @if (Auth::user()->isAdmin())
                 <a href="{{ route('admin.users.create') }}"
@@ -42,6 +42,15 @@
                     @endforeach
                 </select>
             </div>
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700">Account status</label>
+                <select id="status" name="status" class="mt-1 w-full rounded-md border-gray-300 shadow-sm">
+                    <option value="">All statuses</option>
+                    @foreach (['pending' => 'Pending', 'approved' => 'Approved', 'suspended' => 'Suspended'] as $value => $label)
+                        <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="flex gap-2">
                 <button type="submit"
                     class="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">
@@ -60,10 +69,12 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Email</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Code Logic login</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Role</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Created by</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Created</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -72,6 +83,12 @@
                                 <td class="whitespace-nowrap px-6 py-4 font-medium text-gray-900">{{ $user->name }}</td>
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">{{ $user->email }}</td>
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-700">{{ ucfirst($user->role) }}</td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    <span class="rounded-full px-2.5 py-1 text-xs font-semibold
+                                        {{ $user->account_status === 'approved' ? 'bg-green-100 text-green-800' : ($user->account_status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800') }}">
+                                        {{ ucfirst($user->account_status) }}
+                                    </span>
+                                </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     @if ($user->createdBy)
                                         <span>{{ $user->createdBy->name }}</span>
@@ -81,10 +98,47 @@
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ $user->created_at->format('M j, Y') }}</td>
+                                <td class="min-w-64 px-6 py-4 text-sm">
+                                    <div class="flex flex-col gap-3">
+                                        @if ($user->account_status === 'pending' && ($user->isStudent() || Auth::user()->isAdmin()))
+                                            <form method="POST" action="{{ route('users.approve', $user) }}">
+                                                @csrf
+                                                <button type="submit" class="font-semibold text-green-700 hover:text-green-900">
+                                                    Approve account
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if (Auth::user()->isAdmin() && Auth::id() !== $user->id)
+                                            <form method="POST" action="{{ route('admin.users.role.update', $user) }}" class="flex items-center gap-2">
+                                                @csrf
+                                                @method('PATCH')
+                                                <label class="sr-only" for="role-{{ $user->id }}">Role for {{ $user->name }}</label>
+                                                <select id="role-{{ $user->id }}" name="role" class="rounded-md border-gray-300 text-sm">
+                                                    @foreach (['student' => 'Student', 'professor' => 'Professor', 'admin' => 'Admin'] as $value => $label)
+                                                        <option value="{{ $value }}" @selected($user->role === $value)>{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <button type="submit" class="font-semibold text-indigo-700 hover:text-indigo-900">Save role</button>
+                                            </form>
+
+                                            <form method="POST" action="{{ route('admin.users.status.update', $user) }}" class="flex items-center gap-2">
+                                                @csrf
+                                                @method('PATCH')
+                                                <label class="sr-only" for="status-{{ $user->id }}">Status for {{ $user->name }}</label>
+                                                <select id="status-{{ $user->id }}" name="status" class="rounded-md border-gray-300 text-sm">
+                                                    <option value="approved" @selected($user->account_status === 'approved')>Approved</option>
+                                                    <option value="suspended" @selected($user->account_status === 'suspended')>Suspended</option>
+                                                </select>
+                                                <button type="submit" class="font-semibold text-indigo-700 hover:text-indigo-900">Save status</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-10 text-center text-sm text-gray-500">No accounts match these filters.</td>
+                                <td colspan="7" class="px-6 py-10 text-center text-sm text-gray-500">No accounts match these filters.</td>
                             </tr>
                         @endforelse
                     </tbody>

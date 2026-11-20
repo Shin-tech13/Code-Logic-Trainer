@@ -13,7 +13,7 @@ class EnsureUserDirectoryAccess
     {
         $user = Auth::user();
 
-        if (! $user || (! $user->isAdmin() && ! $user->isProfessor())) {
+        if (! $user || ! $user->isApproved() || (! $user->isAdmin() && ! $user->isProfessor())) {
             abort(403, 'Only administrators and professors can view the user directory.');
         }
 

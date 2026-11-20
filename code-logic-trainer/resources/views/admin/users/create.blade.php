@@ -3,7 +3,7 @@
         <div>
             <a href="{{ route('users.index') }}" class="text-sm font-semibold text-indigo-600 hover:underline">← User directory</a>
             <h1 class="mt-3 text-2xl font-bold text-gray-900">Create an account</h1>
-            <p class="mt-1 text-sm text-gray-600">Create a professor or student account. Students created here are authorized to sign in.</p>
+            <p class="mt-1 text-sm text-gray-600">Create an approved account. The personal email is private and is used only for account notifications and recovery.</p>
         </div>
 
         <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-5 rounded-lg bg-white p-6 shadow">
@@ -17,16 +17,17 @@
             </div>
 
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
-                <input id="email" name="email" type="email" value="{{ old('email') }}" required maxlength="255" autocomplete="email"
+                <label for="personal_email" class="block text-sm font-medium text-gray-700">Personal email address</label>
+                <input id="personal_email" name="personal_email" type="email" value="{{ old('personal_email') }}" required maxlength="255" autocomplete="email"
                     class="mt-1 w-full rounded-md border-gray-300 shadow-sm">
-                @error('email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('personal_email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
 
             <div>
                 <label for="role" class="block text-sm font-medium text-gray-700">Account role</label>
                 <select id="role" name="role" required class="mt-1 w-full rounded-md border-gray-300 shadow-sm">
                     <option value="">Choose a role</option>
+                    <option value="admin" @selected(old('role') === 'admin')>Admin</option>
                     <option value="professor" @selected(old('role') === 'professor')>Professor</option>
                     <option value="student" @selected(old('role') === 'student')>Student</option>
                 </select>

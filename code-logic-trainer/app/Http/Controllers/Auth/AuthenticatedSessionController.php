@@ -28,15 +28,24 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // Whitelist gate: block students not yet whitelisted by any professor.
         $user = Auth::user();
+        if (! $user->isApproved() || ! in_array($user->role, ['admin', 'professor', 'student'], true)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'email' => 'Your account is pending approval or is not currently authorized. Please contact your professor or administrator.',
+            ]);
+        }
+
         if ($user->isStudent() && ! $user->is_whitelisted) {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'email' => 'Your account is not authorized yet. Please contact your professor to be added to the whitelist.',
+                'email' => 'Your account is not authorized yet. Please contact your professor.',
             ]);
         }
 

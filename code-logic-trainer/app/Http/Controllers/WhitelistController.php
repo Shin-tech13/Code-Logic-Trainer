@@ -109,7 +109,7 @@ class WhitelistController extends Controller
     protected function syncUserWhitelistFlag(string $email): void
     {
         $stillWhitelisted = WhitelistedStudent::where('email', $email)->exists();
-        User::where('email', $email)->update(['is_whitelisted' => $stillWhitelisted]);
+        User::where('personal_email', $email)->update(['is_whitelisted' => $stillWhitelisted]);
     }
 
     /**

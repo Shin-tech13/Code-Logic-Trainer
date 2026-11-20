@@ -10,10 +10,18 @@
         @csrf
 
         <div>
-            <x-input-label for="email" class="auth-label" :value="__('Email address')" />
+            <x-input-label for="email" class="auth-label" :value="__('Code Logic login address')" />
             <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="example@codelogic.com" />
             <x-input-error :messages="$errors->get('email')" class="auth-input-error mt-2" />
         </div>
+
+        @if (session('code_logic_login'))
+            <div class="rounded-xl border border-violet-300/20 bg-violet-400/10 px-4 py-3 text-sm text-violet-100" role="status">
+                <p class="font-semibold">{{ __('Your Code Logic login address') }}</p>
+                <p class="mt-1 break-all font-mono">{{ session('code_logic_login') }}</p>
+                <p class="mt-2 text-[#D8CFE8]">{{ __('Your account is pending approval. Approval may take about one day; contact your professor if you need access sooner.') }}</p>
+            </div>
+        @endif
 
         <div x-data="{ visible: false }">
             <x-input-label for="password" class="auth-label" :value="__('Password')" />
