@@ -18,7 +18,7 @@
 
             <div>
                 <label for="personal_email" class="block text-sm font-medium text-gray-700">Personal email address</label>
-                <input id="personal_email" name="personal_email" type="email" value="{{ old('personal_email') }}" required maxlength="255" autocomplete="email"
+                <input id="personal_email" name="personal_email" type="email" value="{{ old('personal_email') }}" required maxlength="255" autocomplete="email" placeholder="username123@gmail.com"
                     class="mt-1 w-full rounded-md border-gray-300 shadow-sm">
                 @error('personal_email') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
