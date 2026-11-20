@@ -1,52 +1,78 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
+    <header class="mb-7 text-center">
+        <h1 class="text-2xl font-bold tracking-tight text-[#F8FAFC]">Create your account</h1>
+        <p class="mt-2 text-sm text-[#A59EB8]">Build your coding skills, one challenge at a time.</p>
+    </header>
+
+    <form method="POST" action="{{ route('register') }}" class="space-y-4" x-data="{ loading: false }" x-on:submit="loading = true">
         @csrf
 
-        <!-- Name -->
         <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
+            <x-input-label for="name" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Name')" />
+            <x-text-input id="name" class="auth-input mt-2 block w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" placeholder="Your name" />
+            <x-input-error :messages="$errors->get('name')" class="mt-2 text-sm text-rose-300" />
         </div>
 
-        <!-- Email Address -->
-        <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        <div>
+            <x-input-label for="email" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Email')" />
+            <x-text-input id="email" class="auth-input mt-2 block w-full" type="email" name="email" :value="old('email')" required autocomplete="username" placeholder="you@example.com" />
+            <x-input-error :messages="$errors->get('email')" class="mt-2 text-sm text-rose-300" />
         </div>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="new-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+        <div x-data="{ visible: false }">
+            <x-input-label for="password" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Password')" />
+            <div class="relative mt-2">
+                <x-text-input id="password" class="auth-input block w-full pr-12" x-bind:type="visible ? 'text' : 'password'"
+                    name="password" required autocomplete="new-password" placeholder="Create a password" />
+                <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex items-center px-3 text-[#A59EB8] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B5CF6]" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password">
+                    <svg x-show="!visible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6-9.75-6-9.75-6Z" />
+                        <circle cx="12" cy="12" r="2.75" />
+                    </svg>
+                    <svg x-show="visible" x-cloak xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 6.2A10.7 10.7 0 0 1 12 6c6.25 0 9.75 6 9.75 6a17.2 17.2 0 0 1-3.1 3.75M6.2 6.2C3.65 7.85 2.25 12 2.25 12s3.5 6 9.75 6c1.35 0 2.55-.28 3.6-.72" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+                    </svg>
+                </button>
+            </div>
+            <x-input-error :messages="$errors->get('password')" class="mt-2 text-sm text-rose-300" />
         </div>
 
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
-                            type="password"
-                            name="password_confirmation" required autocomplete="new-password" />
-
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+        <div x-data="{ visible: false }">
+            <x-input-label for="password_confirmation" class="text-sm font-semibold text-[#F8FAFC]" :value="__('Confirm Password')" />
+            <div class="relative mt-2">
+                <x-text-input id="password_confirmation" class="auth-input block w-full pr-12" x-bind:type="visible ? 'text' : 'password'"
+                    name="password_confirmation" required autocomplete="new-password" placeholder="Confirm your password" />
+                <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex items-center px-3 text-[#A59EB8] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B5CF6]" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password_confirmation">
+                    <svg x-show="!visible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6-9.75-6-9.75-6Z" />
+                        <circle cx="12" cy="12" r="2.75" />
+                    </svg>
+                    <svg x-show="visible" x-cloak xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 6.2A10.7 10.7 0 0 1 12 6c6.25 0 9.75 6 9.75 6a17.2 17.2 0 0 1-3.1 3.75M6.2 6.2C3.65 7.85 2.25 12 2.25 12s3.5 6 9.75 6c1.35 0 2.55-.28 3.6-.72" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+                    </svg>
+                </button>
+            </div>
+            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2 text-sm text-rose-300" />
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('login') }}">
-                {{ __('Already registered?') }}
-            </a>
-
-            <x-primary-button class="ms-4">
-                {{ __('Register') }}
+        <div class="pt-2">
+            <x-primary-button class="auth-primary-button w-full justify-center" x-bind:disabled="loading">
+                <span x-show="!loading">{{ __('Create Account') }}</span>
+                <span x-show="loading" x-cloak class="inline-flex items-center gap-2">
+                    <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                    </svg>
+                    {{ __('Creating account...') }}
+                </span>
             </x-primary-button>
         </div>
     </form>
+
+    <p class="mt-7 border-t border-white/10 pt-5 text-center text-sm text-[#A59EB8]">
+        {{ __('Already have an account?') }}
+        <a class="auth-link font-semibold" href="{{ route('login') }}">{{ __('Log in') }}</a>
+    </p>
 </x-guest-layout>

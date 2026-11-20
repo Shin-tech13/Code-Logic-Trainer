@@ -6,6 +6,209 @@
 @source '../js/**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+.auth-shell {
+    background: radial-gradient(ellipse at 50% 20%, #150e24 0%, #0d0916 72%);
+    isolation: isolate;
+}
+
+.ambient-orb {
+    position: absolute;
+    z-index: -1;
+    width: min(42rem, 85vw);
+    aspect-ratio: 1;
+    border-radius: 9999px;
+    filter: blur(88px);
+    pointer-events: none;
+    animation: orb-drift 18s ease-in-out infinite alternate;
+    will-change: transform;
+}
+
+.ambient-orb--violet {
+    top: -18rem;
+    left: -12rem;
+    background: rgb(97 40 142 / 45%);
+}
+
+.ambient-orb--indigo {
+    top: 16%;
+    right: -24rem;
+    width: min(48rem, 90vw);
+    background: rgb(79 70 229 / 30%);
+    animation-delay: -6s;
+}
+
+.ambient-orb--cyan {
+    bottom: -27rem;
+    left: 18%;
+    width: min(36rem, 75vw);
+    background: rgb(6 182 212 / 15%);
+    animation-delay: -12s;
+}
+
+.auth-card {
+    background: rgb(26 19 43 / 68%);
+    border-color: rgb(255 255 255 / 15%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    animation: auth-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.auth-card--has-errors {
+    animation:
+        auth-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both,
+        auth-shake 420ms 300ms ease-in-out both;
+}
+
+.auth-input {
+    border: 1px solid rgb(255 255 255 / 15%);
+    border-radius: 0.7rem;
+    background: rgb(15 11 26 / 75%);
+    color: #f8fafc;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.auth-input::placeholder {
+    color: #7c7491;
+    opacity: 1;
+}
+
+.auth-input:focus {
+    border-color: #8b5cf6;
+    outline: none;
+    box-shadow: 0 0 0 4px rgb(139 92 246 / 25%);
+}
+
+.auth-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.auth-checkbox {
+    height: 1rem;
+    width: 1rem;
+    border: 1px solid rgb(255 255 255 / 25%);
+    border-radius: 0.25rem;
+    background-color: rgb(15 11 26 / 75%);
+    color: #8b5cf6;
+}
+
+.auth-checkbox:focus {
+    --tw-ring-color: rgb(139 92 246 / 35%);
+    --tw-ring-offset-color: #1a132b;
+}
+
+.auth-password-toggle {
+    border-radius: 0 0.7rem 0.7rem 0;
+    transition: color 150ms ease;
+}
+
+.auth-link {
+    color: #c4b5fd;
+    transition: color 150ms ease;
+}
+
+.auth-link:hover {
+    color: #fff;
+}
+
+.auth-link:focus-visible {
+    border-radius: 0.25rem;
+    outline: 2px solid #8b5cf6;
+    outline-offset: 3px;
+}
+
+.auth-primary-button {
+    border: 0;
+    border-radius: 0.75rem;
+    background: linear-gradient(110deg, #7c3aed, #61288e);
+    color: #fff;
+    padding: 0.875rem 1rem;
+    text-transform: none;
+    letter-spacing: normal;
+    box-shadow: 0 0 22px rgb(124 58 237 / 28%);
+    transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.auth-primary-button:hover {
+    background: linear-gradient(110deg, #8b5cf6, #7c3aed);
+    box-shadow: 0 0 28px rgb(139 92 246 / 42%);
+}
+
+.auth-primary-button:focus-visible {
+    outline: 2px solid #a78bfa;
+    outline-offset: 3px;
+}
+
+.auth-primary-button:active {
+    transform: scale(0.98);
+}
+
+.auth-primary-button:disabled {
+    cursor: wait;
+    opacity: 0.8;
+}
+
+@keyframes orb-drift {
+    0% {
+        transform: translate3d(-1.5rem, -1rem, 0) scale(0.96);
+    }
+
+    50% {
+        transform: translate3d(1.5rem, 1rem, 0) scale(1.04);
+    }
+
+    100% {
+        transform: translate3d(-0.5rem, 2rem, 0) scale(1);
+    }
+}
+
+@keyframes auth-enter {
+    from {
+        opacity: 0;
+        translate: 0 0.65rem;
+    }
+
+    to {
+        opacity: 1;
+        translate: 0 0;
+    }
+}
+
+@keyframes auth-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20%,
+    60% {
+        transform: translateX(-0.35rem);
+    }
+
+    40%,
+    80% {
+        transform: translateX(0.35rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ambient-orb,
+    .auth-card,
+    .auth-card--has-errors {
+        animation: none;
+    }
+
+    .auth-input,
+    .auth-link,
+    .auth-primary-button {
+        transition: none;
+    }
 }
