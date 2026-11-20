@@ -29,6 +29,9 @@ class User extends Authenticatable
         'email',
         'personal_email',
         'password',
+        'age',
+        'year_level',
+        'student_id',
     ];
 
     /**
@@ -54,6 +57,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_whitelisted' => 'boolean',
             'approved_at' => 'datetime',
+            'age' => 'integer',
         ];
     }
 
@@ -101,6 +105,12 @@ class User extends Authenticatable
     public function classrooms()
     {
         return $this->hasMany(Classroom::class, 'professor_id');
+    }
+
+    public function enrolledClassrooms()
+    {
+        return $this->belongsToMany(Classroom::class, 'classroom_student', 'student_id', 'classroom_id')
+            ->withTimestamps();
     }
 
     /**

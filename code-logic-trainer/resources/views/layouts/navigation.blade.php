@@ -1,12 +1,12 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+<nav x-data="{ open: false }" class="relative z-20 border-b border-white/10 bg-[#120D1F]/95 text-[#F8FAFC] shadow-[0_8px_28px_rgba(0,0,0,0.22)] backdrop-blur-xl">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
             <div class="flex">
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ Auth::user()->isAdmin() ? route('users.index') : (Auth::user()->isProfessor() ? route('professor.dashboard') : route('student.dashboard')) }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                    <a href="{{ Auth::user()->isAdmin() ? route('users.index') : (Auth::user()->isProfessor() ? route('professor.dashboard') : route('student.dashboard')) }}" class="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-4 focus-visible:ring-offset-[#120D1F]">
+                        <x-application-logo class="block h-9 w-auto" />
                     </a>
                 </div>
 
@@ -23,8 +23,11 @@
                         <x-nav-link :href="route('professor.dashboard')" :active="request()->routeIs('professor.dashboard')">
                             {{ __('Dashboard') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('professor.students.index')" :active="request()->routeIs('professor.students.*')">
+                            {{ __('Managed students') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('professor.whitelist.index')" :active="request()->routeIs('professor.whitelist.*')">
-                            {{ __('Students') }}
+                            {{ __('Whitelist') }}
                         </x-nav-link>
                         <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
                             {{ __('User directory') }}
@@ -32,6 +35,12 @@
                     @else
                         <x-nav-link :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')">
                             {{ __('Practice') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('student.history')" :active="request()->routeIs('student.history')">
+                            {{ __('Quiz history') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                            {{ __('My profile') }}
                         </x-nav-link>
                         <x-nav-link :href="route('student.challenges.index')" :active="request()->routeIs('student.challenges.*')">
                             {{ __('Coding Challenges') }}
@@ -45,10 +54,10 @@
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
+                <x-dropdown align="right" width="48" content-classes="py-1 border border-white/10 bg-[#1A132B]">
                     <x-slot name="trigger">
                         <button
-                            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
+                            class="inline-flex items-center rounded-lg border border-transparent px-3 py-2 text-sm font-medium leading-4 text-[#D8CFE8] transition duration-150 ease-in-out hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400">
                             <div>{{ Auth::user()->name }}</div>
 
                             <div class="ms-1">
@@ -83,8 +92,8 @@
 
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open"
-                    class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
+                <button @click="open = ! open" x-bind:aria-expanded="open.toString()" aria-label="Toggle navigation menu"
+                    class="inline-flex items-center justify-center rounded-md p-2 text-[#B8AEC9] transition duration-150 ease-in-out hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{ 'hidden': open, 'inline-flex': !open }" class="inline-flex"
                             stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -111,8 +120,11 @@
                 <x-responsive-nav-link :href="route('professor.dashboard')" :active="request()->routeIs('professor.dashboard')">
                     {{ __('Dashboard') }}
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('professor.students.index')" :active="request()->routeIs('professor.students.*')">
+                    {{ __('Managed students') }}
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('professor.whitelist.index')" :active="request()->routeIs('professor.whitelist.*')">
-                    {{ __('Students') }}
+                    {{ __('Whitelist') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
                     {{ __('User directory') }}
@@ -120,6 +132,12 @@
             @else
                 <x-responsive-nav-link :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')">
                     {{ __('Practice') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('student.history')" :active="request()->routeIs('student.history')">
+                    {{ __('Quiz history') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
+                    {{ __('My profile') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('student.challenges.index')" :active="request()->routeIs('student.challenges.*')">
                     {{ __('Coding Challenges') }}
@@ -131,10 +149,10 @@
         </div>
 
         <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
+        <div class="border-t border-white/10 pt-4 pb-1">
             <div class="px-4">
-                <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+                <div class="text-base font-medium text-[#F8FAFC]">{{ Auth::user()->name }}</div>
+                <div class="text-sm font-medium text-[#A59EB8]">{{ Auth::user()->email }}</div>
             </div>
 
             <div class="mt-3 space-y-1">

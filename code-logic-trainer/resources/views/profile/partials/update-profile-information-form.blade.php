@@ -1,11 +1,11 @@
 <section>
     <header>
-        <h2 class="text-lg font-medium text-gray-900">
+        <h2 class="text-lg font-semibold text-[#F8FAFC]">
             {{ __('Profile Information') }}
         </h2>
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __("Update your name and private recovery email address.") }}
+        <p class="mt-1 text-sm text-[#A59EB8]">
+            {{ __("Your recovery email is private and is used for account notifications and password recovery.") }}
         </p>
     </header>
 
@@ -14,24 +14,50 @@
         @method('patch')
 
         <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $user->name)" required autofocus autocomplete="name" />
+            <x-input-label for="name" class="auth-label" :value="__('Name')" />
+            <x-text-input id="name" name="name" type="text" class="auth-input mt-2 block w-full" :value="old('name', $user->name)" required autofocus autocomplete="name" />
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
         </div>
 
         <div>
-            <x-input-label for="login_address" :value="__('Code Logic login address')" />
-            <x-text-input id="login_address" type="email" class="mt-1 block w-full" :value="$user->email" readonly />
+            <x-input-label for="login_address" class="auth-label" :value="__('Code Logic login address')" />
+            <p id="login-address-help" class="mt-1 text-xs text-[#A59EB8]">{{ __('This account identifier cannot be changed.') }}</p>
+            <x-text-input id="login_address" type="email" class="auth-input app-readonly-input mt-2 block w-full" :value="$user->email" readonly aria-describedby="login-address-help" />
         </div>
 
         <div>
-            <x-input-label for="personal_email" :value="__('Private recovery email')" />
-            <x-text-input id="personal_email" name="personal_email" type="email" class="mt-1 block w-full" :value="old('personal_email', $user->personal_email)" required autocomplete="email" />
+            <x-input-label for="personal_email" class="auth-label" :value="__('Private recovery email')" />
+            <x-text-input id="personal_email" name="personal_email" type="email" class="auth-input mt-2 block w-full" :value="old('personal_email', $user->personal_email)" required autocomplete="email" />
             <x-input-error class="mt-2" :messages="$errors->get('personal_email')" />
         </div>
 
+        <div>
+            <x-input-label for="age" class="auth-label" :value="__('Age (optional)')" />
+            <x-text-input id="age" name="age" type="number" min="1" max="120" class="auth-input mt-2 block w-full" :value="old('age', $user->age)" />
+            <x-input-error class="mt-2" :messages="$errors->get('age')" />
+        </div>
+
+        @if ($user->isStudent())
+            <div class="grid gap-4 border-t border-white/10 pt-5 sm:grid-cols-2">
+                <div>
+                    <x-input-label for="student_id_display" class="auth-label" :value="__('Student ID')" />
+                    <x-text-input id="student_id_display" type="text" class="auth-input app-readonly-input mt-2 block w-full" :value="$user->student_id ?: __('Not provided')" readonly />
+                </div>
+                <div>
+                    <x-input-label for="year_level_display" class="auth-label" :value="__('Year level')" />
+                    <x-text-input id="year_level_display" type="text" class="auth-input app-readonly-input mt-2 block w-full" :value="$user->year_level ?: __('Not provided')" readonly />
+                </div>
+                <div class="sm:col-span-2">
+                    <p class="auth-label">{{ __('Class') }}</p>
+                    <p class="mt-2 rounded-xl border border-white/10 bg-[#0F0B1A]/75 px-4 py-3 text-sm text-[#D8CFE8]">
+                        {{ $classrooms->isNotEmpty() ? $classrooms->pluck('title')->join(', ') : __('Not assigned') }}
+                    </p>
+                </div>
+            </div>
+        @endif
+
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <x-primary-button class="auth-primary-button">{{ __('Save profile') }}</x-primary-button>
 
             @if (session('status') === 'profile-updated')
                 <p
@@ -39,7 +65,7 @@
                     x-show="show"
                     x-transition
                     x-init="setTimeout(() => show = false, 2000)"
-                    class="text-sm text-gray-600"
+                    class="text-sm text-emerald-200"
                 >{{ __('Saved.') }}</p>
             @endif
         </div>

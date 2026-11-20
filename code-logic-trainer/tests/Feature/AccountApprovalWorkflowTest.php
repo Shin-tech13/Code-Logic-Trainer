@@ -16,17 +16,21 @@ test('public registration creates a pending student with a generated login and p
     $this->post(route('register'), [
         'name' => 'Jane Doe',
         'personal_email' => 'jane.doe@example.test',
+        'year_level' => '2nd Year',
+        'student_id' => '2026-001',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
         'role' => 'admin',
         'account_status' => 'approved',
         'is_whitelisted' => true,
-    ])->assertRedirect(route('login'))
-        ->assertSessionHas('code_logic_login', 'janedoe@codelogic.com');
+    ])->assertRedirect(route('register.confirmation'))
+        ->assertSessionHas('registration_login_address', 'janedoe@codelogic.com');
 
     $user = User::where('email', 'janedoe@codelogic.com')->firstOrFail();
 
     expect($user->personal_email)->toBe('jane.doe@example.test')
+        ->and($user->year_level)->toBe('2nd Year')
+        ->and($user->student_id)->toBe('2026-001')
         ->and($user->role)->toBe('student')
         ->and($user->account_status)->toBe('pending')
         ->and($user->is_whitelisted)->toBeFalse()
@@ -42,12 +46,76 @@ test('generated login address is made unique when a name already has an address'
     $this->post(route('register'), [
         'name' => 'Jane Doe',
         'personal_email' => 'jane.second@example.test',
+        'year_level' => '1st Year',
+        'student_id' => '2026-002',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
-    ])->assertRedirect(route('login'))
-        ->assertSessionHas('code_logic_login', 'janedoe2@codelogic.com');
+    ])->assertRedirect(route('register.confirmation'))
+        ->assertSessionHas('registration_login_address', 'janedoe2@codelogic.com');
 
     expect(User::where('email', 'janedoe2@codelogic.com')->exists())->toBeTrue();
+});
+
+test('public student registration requires a year level and unique student id', function () {
+    $this->from(route('register'))
+        ->post(route('register'), [
+            'name' => 'Jane Doe',
+            'personal_email' => 'jane.fields@example.test',
+            'password' => 'StrongPassword123!',
+            'password_confirmation' => 'StrongPassword123!',
+        ])
+        ->assertRedirect(route('register'))
+        ->assertSessionHasErrors(['year_level', 'student_id']);
+
+    $this->post(route('register'), [
+        'name' => 'First Student',
+        'personal_email' => 'first.fields@example.test',
+        'year_level' => '1st Year',
+        'student_id' => 'UNIQUE-001',
+        'password' => 'StrongPassword123!',
+        'password_confirmation' => 'StrongPassword123!',
+    ])->assertRedirect(route('register.confirmation'));
+
+    $this->from(route('register'))
+        ->post(route('register'), [
+            'name' => 'Second Student',
+            'personal_email' => 'second.fields@example.test',
+            'year_level' => '2nd Year',
+            'student_id' => 'UNIQUE-001',
+            'password' => 'StrongPassword123!',
+            'password_confirmation' => 'StrongPassword123!',
+        ])
+        ->assertRedirect(route('register'))
+        ->assertSessionHasErrors('student_id');
+});
+
+test('successful registration displays a one-time confirmation instead of the login form', function () {
+    Notification::fake();
+
+    $response = $this->followingRedirects()->post(route('register'), [
+        'name' => 'Jane Doe',
+        'personal_email' => 'jane.doe@example.test',
+        'year_level' => '2nd Year',
+        'student_id' => '2026-003',
+        'password' => 'StrongPassword123!',
+        'password_confirmation' => 'StrongPassword123!',
+    ])->assertOk()
+        ->assertSee('Account request received')
+        ->assertSee('pending approval')
+        ->assertSee('Your Code Logic login address')
+        ->assertSee('Check the personal email address you provided')
+        ->assertSee('about one day')
+        ->assertSee('contact your professor')
+        ->assertSee('Back to login')
+        ->assertDontSee('Welcome back')
+        ->assertDontSee('Remember me')
+        ->assertDontSee('Log In')
+        ->assertDontSee('Create your account');
+
+    expect(substr_count($response->getContent(), 'janedoe@codelogic.com'))->toBe(1);
+
+    $this->get(route('register.confirmation'))
+        ->assertRedirect(route('login'));
 });
 
 test('pending and suspended accounts cannot log in or access protected routes', function () {
@@ -85,6 +153,11 @@ test('professors and admins can approve pending accounts and approval sends a no
         'personal_email' => 'student.personal@example.test',
         'is_whitelisted' => false,
     ]);
+    $classroom = $professor->classrooms()->create([
+        'title' => 'BSIT 2A',
+        'class_code' => 'BSIT-2026',
+    ]);
+    $student->enrolledClassrooms()->attach($classroom);
 
     $this->actingAs($professor)
         ->post(route('users.approve', $student))
@@ -96,6 +169,22 @@ test('professors and admins can approve pending accounts and approval sends a no
         ->and($student->approved_by_user_id)->toBe($professor->id);
 
     Notification::assertSentTo($student, AccountApproved::class);
+});
+
+test('professors cannot approve students until the student is assigned to their class', function () {
+    $professor = User::factory()->create(['role' => 'professor']);
+    $student = User::factory()->create([
+        'role' => 'student',
+        'account_status' => 'pending',
+        'is_whitelisted' => true,
+    ]);
+
+    $this->actingAs($professor)
+        ->post(route('users.approve', $student))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($student->fresh()->account_status)->toBe('pending');
 });
 
 test('professors cannot approve non-student accounts or assign roles', function () {

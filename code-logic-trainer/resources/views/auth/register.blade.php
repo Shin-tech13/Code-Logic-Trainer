@@ -19,6 +19,23 @@
             <x-input-error :messages="$errors->get('personal_email')" class="auth-input-error mt-2" />
         </div>
 
+        <div>
+            <x-input-label for="year_level" class="auth-label" :value="__('Year level')" />
+            <select id="year_level" name="year_level" class="auth-input mt-2" required>
+                <option value="" disabled @selected(old('year_level') === null)>Select your year level</option>
+                @foreach (['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'] as $yearLevel)
+                    <option value="{{ $yearLevel }}" @selected(old('year_level') === $yearLevel)>{{ $yearLevel }}</option>
+                @endforeach
+            </select>
+            <x-input-error :messages="$errors->get('year_level')" class="auth-input-error mt-2" />
+        </div>
+
+        <div>
+            <x-input-label for="student_id" class="auth-label" :value="__('Student ID')" />
+            <x-text-input id="student_id" class="auth-input mt-2 block w-full" type="text" name="student_id" :value="old('student_id')" required autocomplete="off" placeholder="Enter your student ID" />
+            <x-input-error :messages="$errors->get('student_id')" class="auth-input-error mt-2" />
+        </div>
+
         <div x-data="{ visible: false }">
             <x-input-label for="password" class="auth-label" :value="__('Password')" />
             <div class="relative mt-2">

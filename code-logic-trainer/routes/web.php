@@ -10,6 +10,7 @@ use App\Http\Controllers\WhitelistController;
 use App\Http\Controllers\CodeChallengeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\ProfessorStudentController;
 
 // Homepage Root Route (Smart Redirect)
 Route::get('/', function () {
@@ -58,6 +59,10 @@ Route::middleware(['auth', 'account-approved', 'admin'])->prefix('admin')->name(
 // ===================== PROFESSOR ROUTES =====================
 Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor')->name('professor.')->group(function () {
     Route::get('/dashboard', [ProfessorQuizController::class, 'index'])->name('dashboard');
+    Route::get('/students', [ProfessorStudentController::class, 'index'])->name('students.index');
+    Route::post('/classrooms', [ProfessorStudentController::class, 'storeClassroom'])->name('classrooms.store');
+    Route::get('/students/{student}/edit', [ProfessorStudentController::class, 'edit'])->name('students.edit');
+    Route::patch('/students/{student}', [ProfessorStudentController::class, 'update'])->name('students.update');
 
     // Student whitelist management
     Route::get('/whitelist', [WhitelistController::class, 'index'])->name('whitelist.index');
@@ -80,6 +85,7 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
 // ===================== STUDENT ROUTES (self-study) =====================
 Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentQuizController::class, 'index'])->name('dashboard');
+    Route::get('/history', [StudentQuizController::class, 'history'])->name('history');
     Route::post('/quiz/generate', [StudentQuizController::class, 'generate'])->name('quiz.generate');
     Route::get('/quiz/{session}/play', [StudentQuizController::class, 'play'])->name('play');
     Route::post('/quiz/{session}/answer', [StudentQuizController::class, 'answer'])->name('quiz.answer');

@@ -16,7 +16,7 @@ class WhitelistController extends Controller
     public function index()
     {
         $students = WhitelistedStudent::where('professor_id', Auth::id())
-            ->with('user:id,email,is_whitelisted')
+            ->with('user:id,email,personal_email,is_whitelisted')
             ->orderBy('created_at', 'desc')
             ->get();
 

@@ -26,6 +26,22 @@ class RegisteredUserController extends Controller
     }
 
     /**
+     * Show the one-time registration confirmation.
+     */
+    public function confirmation(Request $request): View|RedirectResponse
+    {
+        $loginAddress = $request->session()->pull('registration_login_address');
+
+        if (! is_string($loginAddress) || $loginAddress === '') {
+            return redirect()->route('login');
+        }
+
+        return view('auth.registration-confirmation', [
+            'loginAddress' => $loginAddress,
+        ]);
+    }
+
+    /**
      * Handle an incoming registration request.
      *
      * @throws ValidationException
@@ -39,6 +55,8 @@ class RegisteredUserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'personal_email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,personal_email'],
+            'year_level' => ['required', 'string', 'max:50'],
+            'student_id' => ['required', 'string', 'max:100', 'unique:users,student_id'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -48,6 +66,8 @@ class RegisteredUserController extends Controller
                 'name' => $validated['name'],
                 'email' => $loginAddress->generate($validated['name']),
                 'personal_email' => $validated['personal_email'],
+                'year_level' => $validated['year_level'],
+                'student_id' => $validated['student_id'],
                 'password' => $validated['password'],
             ]);
             $user->forceFill([
@@ -68,8 +88,7 @@ class RegisteredUserController extends Controller
         $notificationSender->send($user, new AccountPendingApproval, 'registration confirmation');
 
         return redirect()
-            ->route('login')
-            ->with('status', __('Registration received. Your account is pending approval.'))
-            ->with('code_logic_login', $user->email);
+            ->route('register.confirmation')
+            ->with('registration_login_address', $user->email);
     }
 }

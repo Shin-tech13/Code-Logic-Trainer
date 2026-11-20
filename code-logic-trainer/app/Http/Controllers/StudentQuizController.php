@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\QuizGeneratorService;
 use App\Models\QuizSession;
+use App\Models\SessionParticipant;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -34,6 +35,86 @@ class StudentQuizController extends Controller
             ->first();
 
         return view('student.dashboard', compact('session'));
+    }
+
+    public function history()
+    {
+        $studentId = Auth::id();
+        $history = collect();
+
+        $selfStudySessions = QuizSession::query()
+            ->with('questions')
+            ->where('student_id', $studentId)
+            ->where('type', 'self_study')
+            ->where('status', 'completed')
+            ->get();
+
+        foreach ($selfStudySessions as $session) {
+            $history->push($this->historyEntry(
+                title: trim(($session->language ?? '').': '.($session->topic ?? ''), ': '),
+                takenAt: $session->updated_at,
+                score: $session->score,
+                questions: $session->questions,
+                answers: $session->answers ?? [],
+            ));
+        }
+
+        $liveParticipants = SessionParticipant::query()
+            ->with('quizSession.quiz.questions')
+            ->where('student_id', $studentId)
+            ->where('status', 'completed')
+            ->get();
+
+        foreach ($liveParticipants as $participant) {
+            $session = $participant->quizSession;
+            if (! $session || $session->type !== 'live' || ! $session->quiz) {
+                continue;
+            }
+
+            $history->push($this->historyEntry(
+                title: $session->quiz->title,
+                takenAt: $participant->updated_at,
+                score: $participant->score,
+                questions: $session->quiz->questions,
+                answers: $participant->answers ?? [],
+            ));
+        }
+
+        return view('student.history', [
+            'history' => $history->sortByDesc('taken_at')->values(),
+        ]);
+    }
+
+    private function historyEntry(string $title, $takenAt, int $score, $questions, array $answers): array
+    {
+        $incorrect = $questions->filter(function ($question) use ($answers) {
+            $answer = $answers[$question->id] ?? null;
+
+            return $answer === null
+                || $answer === self::TIMEOUT_ANSWER
+                || trim((string) $answer) !== trim((string) $question->correct_answer);
+        })->map(function ($question) use ($answers) {
+            $answer = $answers[$question->id] ?? null;
+
+            return [
+                'question' => $question->question_text,
+                'answer' => $answer === self::TIMEOUT_ANSWER
+                    ? 'Time expired'
+                    : ($answer ?? 'No answer submitted'),
+                'correct_answer' => $question->correct_answer,
+                'explanation' => filled($question->explanation)
+                    ? $question->explanation
+                    : 'No explanation provided.',
+            ];
+        })->values();
+
+        return [
+            'title' => $title !== '' ? $title : 'Quiz',
+            'taken_at' => $takenAt,
+            'score' => $score,
+            'total' => $questions->count(),
+            'incorrect' => $incorrect,
+        ];
     }
 
     /**

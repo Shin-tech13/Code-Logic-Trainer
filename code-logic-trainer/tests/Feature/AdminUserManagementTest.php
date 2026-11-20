@@ -48,12 +48,19 @@ test('admin can create professor and student accounts with trusted creator attri
 
 test('only admins may create accounts and students cannot view the directory', function () {
     $professor = User::factory()->create(['role' => 'professor']);
-    $student = User::factory()->create(['role' => 'student', 'is_whitelisted' => true]);
+    $student = User::factory()->create([
+        'role' => 'student',
+        'is_whitelisted' => true,
+        'personal_email' => 'private.student@example.test',
+    ]);
 
     $this->actingAs($professor)
         ->get(route('users.index'))
         ->assertOk()
-        ->assertDontSee(route('admin.users.create'));
+        ->assertDontSee(route('admin.users.create'))
+        ->assertDontSee('private.student@example.test')
+        ->assertDontSee('Save role')
+        ->assertDontSee('Save status');
 
     $this->actingAs($professor)
         ->post(route('admin.users.store'), [])
@@ -71,6 +78,29 @@ test('only admins may create accounts and students cannot view the directory', f
     $this->actingAs($admin)
         ->get(route('student.dashboard'))
         ->assertForbidden();
+});
+
+test('directory presents pending approval and admin management actions without exposing recovery email', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    User::factory()->create([
+        'name' => 'Pending Student',
+        'email' => 'pendingstudent@codelogic.com',
+        'personal_email' => 'private.pending@example.test',
+        'role' => 'student',
+        'account_status' => 'pending',
+        'is_whitelisted' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('users.index'))
+        ->assertOk()
+        ->assertSee('User directory')
+        ->assertSee('pendingstudent@codelogic.com')
+        ->assertSee('Pending')
+        ->assertSee('Approve account')
+        ->assertSee('Save role')
+        ->assertSee('Save status')
+        ->assertDontSee('private.pending@example.test');
 });
 
 test('admin can create an admin role with a private contact address', function () {
@@ -146,10 +176,12 @@ test('whitelisted student registration records the professor and remains pending
     $this->post(route('register'), [
         'name' => 'New Student',
         'personal_email' => 'registered.student@example.test',
+        'year_level' => '1st Year',
+        'student_id' => 'REG-1001',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
-    ])->assertRedirect(route('login'))
-        ->assertSessionHas('code_logic_login', 'newstudent@codelogic.com');
+    ])->assertRedirect(route('register.confirmation'))
+        ->assertSessionHas('registration_login_address', 'newstudent@codelogic.com');
 
     $student = User::where('email', 'newstudent@codelogic.com')->firstOrFail();
     expect($student->created_by_user_id)->toBe($professor->id)

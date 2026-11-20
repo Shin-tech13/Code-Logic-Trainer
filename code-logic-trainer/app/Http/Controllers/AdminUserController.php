@@ -100,8 +100,12 @@ class AdminUserController extends Controller
             abort(403, 'Professors may only approve student accounts.');
         }
 
+        if ($actor->isProfessor() && ! $user->enrolledClassrooms()->where('classrooms.professor_id', $actor->id)->exists()) {
+            return back()->with('error', 'Assign this student to one of your classes before approving the account.');
+        }
+
         if ($user->account_status !== 'pending') {
-            return back()->with('status', 'This account is no longer pending approval.');
+            return back()->with('error', 'This account is no longer pending approval.');
         }
 
         DB::transaction(function () use ($user, $actor) {
