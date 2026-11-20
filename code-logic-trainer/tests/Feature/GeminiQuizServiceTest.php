@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\GeminiProviderException;
 use App\Services\GeminiQuizService;
 use Illuminate\Support\Facades\Http;
 
@@ -118,4 +119,29 @@ test('automatic count drops duplicate and malformed model questions', function (
     expect($questions)->toHaveCount(2)
         ->and($questions[0]['correct_answer'])->toBe('A. 2')
         ->and($questions[0]['needs_review'])->toBeFalse();
+});
+
+test('provider failures expose only the HTTP status and sanitized provider error code', function () {
+    Http::fake([
+        '*' => Http::response([
+            'error' => [
+                'code' => 429,
+                'status' => 'RESOURCE_EXHAUSTED',
+                'message' => 'sensitive document text must not be logged',
+            ],
+        ], 429),
+    ]);
+
+    try {
+        app(GeminiQuizService::class)->generateQuizFromText(
+            'Sensitive source material',
+            'Test',
+            1,
+        );
+        $this->fail('Expected the provider request to fail.');
+    } catch (GeminiProviderException $exception) {
+        expect($exception->httpStatus)->toBe(429)
+            ->and($exception->providerErrorCode)->toBe('RESOURCE_EXHAUSTED')
+            ->and($exception->getMessage())->not->toContain('sensitive');
+    }
 });

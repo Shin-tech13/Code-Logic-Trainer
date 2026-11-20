@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Exceptions\GeminiProviderException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
@@ -47,11 +47,8 @@ class GeminiQuizService
                 if ($text !== '') {
                     return $this->cleanExtractedText($text);
                 }
-            } catch (\Throwable $e) {
-                Log::warning('Native PDF extraction failed, falling back to Gemini', [
-                    'file'  => $filePath,
-                    'error' => $e->getMessage(),
-                ]);
+            } catch (\Throwable) {
+                // Continue with the provider fallback without logging the document path or parser output.
             }
         }
 
@@ -217,13 +214,25 @@ PROMPT;
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post($url, $payload);
         } catch (ConnectionException $e) {
-            Log::error('Gemini network or timeout error.', ['error' => $e->getMessage()]);
             throw new RuntimeException('The quiz service could not be reached. Please try again later.', 0, $e);
         }
 
         if (! $response->successful()) {
-            Log::error('Gemini API returned an unsuccessful response.', ['status' => $response->status()]);
-            throw new RuntimeException('The quiz service could not complete this request. Please try again later.');
+            $providerErrorCode = $response->json('error.status');
+            if (! is_string($providerErrorCode)) {
+                $providerErrorCode = $response->json('error.code');
+            }
+            if (! is_string($providerErrorCode) && ! is_int($providerErrorCode)) {
+                $providerErrorCode = null;
+            }
+            if ($providerErrorCode !== null) {
+                $providerErrorCode = (string) $providerErrorCode;
+                if (preg_match('/^[A-Za-z0-9_.-]{1,100}$/', $providerErrorCode) !== 1) {
+                    $providerErrorCode = null;
+                }
+            }
+
+            throw new GeminiProviderException($response->status(), $providerErrorCode);
         }
 
         // Gemini returns candidates[0].content.parts[].text
@@ -234,11 +243,6 @@ PROMPT;
         }
 
         if ($text === '') {
-            $blockReason  = $response->json('promptFeedback.blockReason');
-            Log::error('Gemini returned empty content', [
-                'finish_reason' => $finishReason,
-                'block_reason'  => $blockReason,
-            ]);
             throw new RuntimeException('Gemini returned an empty response. Finish reason: ' . ($finishReason ?: 'unknown'));
         }
 
@@ -272,9 +276,6 @@ PROMPT;
         }
 
         if (! is_array($decoded) || json_last_error() !== JSON_ERROR_NONE) {
-            Log::error('Gemini JSON parse failed', [
-                'error' => json_last_error_msg(),
-            ]);
             throw new RuntimeException('The quiz service returned an invalid response. Please retry generation.');
         }
 

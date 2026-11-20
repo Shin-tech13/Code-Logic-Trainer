@@ -1,11 +1,13 @@
 <?php
 
+use App\Exceptions\GeminiProviderException;
 use App\Models\Quiz;
 use App\Models\UploadedFile as StoredUpload;
 use App\Models\User;
 use App\Services\GeminiQuizService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -76,4 +78,34 @@ test('professors cannot view or delete another professors quiz', function () {
         ->assertForbidden();
 
     expect($quiz->fresh())->not->toBeNull();
+});
+
+test('professor generation logs only safe provider diagnostics to stderr', function () {
+    Storage::fake('local');
+    $professor = User::factory()->create(['role' => 'professor']);
+    $logger = Mockery::mock();
+    $logger->shouldReceive('error')
+        ->once()
+        ->with('PDF quiz generation failed.', [
+            'exception_class' => GeminiProviderException::class,
+            'provider_http_status' => 503,
+            'provider_error_code' => 'SERVICE_UNAVAILABLE',
+        ]);
+    Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
+
+    $this->mock(GeminiQuizService::class, function ($mock) {
+        $mock->shouldReceive('extractPdfText')
+            ->once()
+            ->andThrow(new GeminiProviderException(503, 'SERVICE_UNAVAILABLE'));
+    });
+
+    $this->actingAs($professor)
+        ->withHeader('Accept', 'application/json')
+        ->post(route('professor.quizzes.generate'), [
+            'pdf' => UploadedFile::fake()->createWithContent('course.pdf', "%PDF-1.4\n%%EOF"),
+            'title' => 'Test quiz',
+            'quiz_format' => 'multiple_choice',
+        ])
+        ->assertStatus(502)
+        ->assertJsonPath('message', 'Quiz generation could not be completed. Check the PDF and try again later.');
 });

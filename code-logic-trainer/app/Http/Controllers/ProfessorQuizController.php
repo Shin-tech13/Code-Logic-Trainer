@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Quiz;
 use App\Models\UploadedFile;
+use App\Exceptions\GeminiProviderException;
 use App\Services\GeminiQuizService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -136,11 +137,19 @@ class ProfessorQuizController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
-            Log::error('PDF quiz generation failed', [
-                'professor_id' => Auth::id(),
-                'error'        => $e->getMessage(),
-                'trace'        => $e->getTraceAsString(),
-            ]);
+            $diagnostic = [
+                'exception_class' => $e::class,
+                'provider_http_status' => $e instanceof GeminiProviderException
+                    ? $e->httpStatus
+                    : null,
+                'provider_error_code' => $e instanceof GeminiProviderException
+                    ? $e->providerErrorCode
+                    : null,
+            ];
+            Log::channel('stderr')->error('PDF quiz generation failed.', array_filter(
+                $diagnostic,
+                static fn ($value) => $value !== null,
+            ));
 
             if (isset($uploaded)) {
                 $uploaded->update(['status' => 'failed']);
