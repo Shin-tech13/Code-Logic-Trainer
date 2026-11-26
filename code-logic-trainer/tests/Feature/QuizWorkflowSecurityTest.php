@@ -45,6 +45,7 @@ test('professor login redirects to the professor dashboard', function () {
     $this->post(route('login'), [
         'email' => $professor->email,
         'password' => 'password',
+        'terms' => '1',
     ])->assertRedirect(route('professor.dashboard'));
 });
 
@@ -58,6 +59,7 @@ test('whitelisted student login redirects to the student dashboard', function ()
     $this->post(route('login'), [
         'email' => $student->email,
         'password' => 'password',
+        'terms' => '1',
     ])->assertRedirect(route('student.dashboard'));
 });
 

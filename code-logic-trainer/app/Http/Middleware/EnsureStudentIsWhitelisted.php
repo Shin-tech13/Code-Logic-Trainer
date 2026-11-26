@@ -9,9 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureStudentIsWhitelisted
 {
-    /**
-     * Block approved students who have not been whitelisted by a professor.
-     */
+    // Only approved, professor-whitelisted students can enter.
     public function handle(Request $request, Closure $next): Response
     {
         $user = Auth::user();

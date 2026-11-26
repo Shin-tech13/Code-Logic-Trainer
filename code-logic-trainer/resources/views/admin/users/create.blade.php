@@ -2,25 +2,25 @@
     <div class="admin-directory-shell relative isolate min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div class="ambient-orb ambient-orb--violet" aria-hidden="true"></div>
         <div class="ambient-orb ambient-orb--indigo" aria-hidden="true"></div>
-        <div class="ambient-orb ambient-orb--cyan" aria-hidden="true"></div>
+        <div class="ambient-orb ambient-orb--plum" aria-hidden="true"></div>
 
         <main class="relative z-10 mx-auto max-w-2xl space-y-6">
             <header>
-                <a href="{{ route('users.index') }}" class="auth-link inline-flex items-center gap-2 rounded-md text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-4">
+                <a href="{{ route('users.index') }}" class="auth-link inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-field)] text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400 focus-visible:outline-offset-4">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6" />
                     </svg>
                     User directory
                 </a>
-                <p class="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Administration</p>
-                <h1 class="mt-2 text-3xl font-bold tracking-tight text-[#F8FAFC]">Create an account</h1>
-                <p class="mt-2 text-sm leading-6 text-[#B8AEC9]">
+                <p class="mt-5 text-xs font-semibold tracking-wide text-accent-300">Administration</p>
+                <h1 class="mt-2 text-3xl font-bold tracking-tight text-ink-text">Create an account</h1>
+                <p class="mt-2 text-sm leading-6 text-ink-subtle">
                     Create an approved account. The personal email is private and is used only for account notifications and recovery.
                 </p>
             </header>
 
             @if ($errors->any())
-                <div class="rounded-xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert" aria-labelledby="create-account-errors-title">
+                <div class="rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-100" role="alert" aria-labelledby="create-account-errors-title">
                     <p id="create-account-errors-title" class="font-semibold">Please review the following fields.</p>
                     <ul class="mt-2 list-inside list-disc space-y-1">
                         @foreach ($errors->all() as $error)
@@ -30,7 +30,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.users.store') }}" class="app-glass-panel space-y-5 rounded-2xl border p-5 sm:p-7">
+            <form method="POST" action="{{ route('admin.users.store') }}" class="app-glass-panel space-y-5 p-5 sm:p-7">
                 @csrf
 
                 <div>
@@ -42,7 +42,7 @@
 
                 <div>
                     <label for="personal_email" class="auth-label">Personal email address</label>
-                    <p id="personal-email-help" class="mt-1 text-xs text-[#A59EB8]">Private contact address for account notifications and recovery.</p>
+                    <p id="personal-email-help" class="mt-1 text-xs leading-5 text-ink-subtle">Private contact address for account notifications and recovery.</p>
                     <input id="personal_email" name="personal_email" type="email" value="{{ old('personal_email') }}" required maxlength="255" autocomplete="email" placeholder="username123@gmail.com"
                         aria-describedby="personal-email-help @error('personal_email') personal-email-error @enderror" class="auth-input mt-2">
                     @error('personal_email') <p id="personal-email-error" class="auth-input-error mt-2 text-sm" role="alert">{{ $message }}</p> @enderror

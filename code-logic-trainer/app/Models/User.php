@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -19,11 +18,7 @@ class User extends Authenticatable
         'is_whitelisted' => false,
     ];
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> */
     protected $fillable = [
         'name',
         'email',
@@ -34,22 +29,14 @@ class User extends Authenticatable
         'student_id',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> */
     protected $hidden = [
         'password',
         'remember_token',
         'personal_email',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
@@ -61,9 +48,6 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Quick role helpers.
-     */
     public function isProfessor(): bool
     {
         return $this->role === 'professor';
@@ -99,9 +83,6 @@ class User extends Authenticatable
         return $this->hasMany(self::class, 'created_by_user_id');
     }
 
-    /**
-     * Classrooms created by this professor.
-     */
     public function classrooms()
     {
         return $this->hasMany(Classroom::class, 'professor_id');
@@ -113,33 +94,21 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-    /**
-     * Students this professor has whitelisted.
-     */
     public function whitelistedStudents()
     {
         return $this->hasMany(WhitelistedStudent::class, 'professor_id');
     }
 
-    /**
-     * Quizzes created by this professor.
-     */
     public function quizzes()
     {
         return $this->hasMany(Quiz::class, 'professor_id');
     }
 
-    /**
-     * Live quiz sessions hosted by this professor.
-     */
     public function hostedQuizSessions()
     {
         return $this->hasMany(QuizSession::class, 'professor_id');
     }
 
-    /**
-     * Live sessions this student participates in.
-     */
     public function sessionParticipants()
     {
         return $this->hasMany(SessionParticipant::class, 'student_id');

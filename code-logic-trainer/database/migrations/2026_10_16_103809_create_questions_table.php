@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('quiz_session_id')->constrained('quiz_sessions')->onDelete('cascade');
             $table->text('question_text');
-            $table->json('options'); // Stores the 4 choices array
+            $table->json('options');
             $table->string('correct_answer');
             $table->text('explanation');
             $table->timestamps();

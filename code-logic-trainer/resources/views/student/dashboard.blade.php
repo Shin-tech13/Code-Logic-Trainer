@@ -2,14 +2,14 @@
     <div class="auth-shell relative isolate min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div class="ambient-orb ambient-orb--violet" aria-hidden="true"></div>
         <div class="ambient-orb ambient-orb--indigo" aria-hidden="true"></div>
-        <div class="ambient-orb ambient-orb--cyan" aria-hidden="true"></div>
+        <div class="ambient-orb ambient-orb--plum" aria-hidden="true"></div>
 
         <main class="relative z-10 mx-auto max-w-5xl space-y-6">
             <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Student workspace</p>
-                    <h1 class="mt-2 text-3xl font-bold tracking-tight text-[#F8FAFC]">Practice your coding logic</h1>
-                    <p class="mt-2 max-w-2xl text-sm leading-6 text-[#A59EB8]">Generate a topic quiz or create one from your own course PDF.</p>
+                    <p class="text-xs font-semibold tracking-wide text-accent-300">Student workspace</p>
+                    <h1 class="mt-2 text-3xl font-bold tracking-tight text-ink-text sm:text-4xl">Practice your coding logic</h1>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-ink-subtle">Generate a topic quiz or create one from your own course PDF.</p>
                 </div>
                 <a href="{{ route('student.challenges.index') }}" class="app-secondary-button inline-flex min-h-11 items-center justify-center px-4 text-sm font-semibold">
                     Explore coding challenges
@@ -17,7 +17,7 @@
             </header>
 
             <div class="grid gap-6 lg:grid-cols-2">
-                <section class="app-glass-panel rounded-2xl border p-5 sm:p-7" aria-labelledby="topic-quiz-heading"
+                <section class="app-glass-panel p-5 sm:p-7" aria-labelledby="topic-quiz-heading"
                     x-data="{
                         language: 'PHP',
                         topic: '',
@@ -42,6 +42,8 @@
                         },
                         async generateQuiz() {
                             if (!this.topic.trim() || this.isGenerating) return;
+                            const secondsPerQuestion = window.normalizeQuestionTimer(this.$refs.secondsPerQuestion.value, true);
+                            this.$refs.secondsPerQuestion.value = secondsPerQuestion;
                             this.isGenerating = true;
                             this.errorMessage = '';
                             this.startProgress();
@@ -53,7 +55,11 @@
                                         'Accept': 'application/json',
                                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
                                     },
-                                    body: JSON.stringify({ language: this.language, topic: this.topic.trim() }),
+                                    body: JSON.stringify({
+                                        language: this.language,
+                                        topic: this.topic.trim(),
+                                        seconds_per_question: secondsPerQuestion,
+                                    }),
                                 });
                                 const data = await response.json();
                                 if (!response.ok || !data.success) {
@@ -74,8 +80,8 @@
                             }
                         }
                     }">
-                    <h2 id="topic-quiz-heading" class="text-xl font-bold text-[#F8FAFC]">Practice a topic</h2>
-                    <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Build a multiple-choice quiz from a programming concept.</p>
+                    <h2 id="topic-quiz-heading" class="text-xl font-bold tracking-tight text-ink-text">Practice a topic</h2>
+                    <p class="mt-1 text-sm leading-6 text-ink-subtle">Build a multiple-choice quiz from a programming concept.</p>
 
                     <form @submit.prevent="generateQuiz" class="mt-6 space-y-4" x-show="!isGenerating">
                         <div>
@@ -91,21 +97,28 @@
                             <label for="topic" class="auth-label">Topic</label>
                             <input type="text" id="topic" x-model="topic" placeholder="e.g. Arrays, loops" required maxlength="255" class="auth-input mt-2">
                         </div>
+                        <div>
+                            <label for="topic-seconds-per-question" class="auth-label">Seconds per question</label>
+                            <input id="topic-seconds-per-question" x-ref="secondsPerQuestion" name="seconds_per_question" type="number" min="0" max="100" step="1" value="20" placeholder="20 (default)" class="auth-input mt-2"
+                                @input="$event.target.value = window.normalizeQuestionTimer($event.target.value)"
+                                @blur="$event.target.value = window.normalizeQuestionTimer($event.target.value, true)">
+                            <p class="mt-1 text-xs leading-5 text-ink-subtle">1–100s (leave blank or 0 for default 20s; values above 100 cap at 100s)</p>
+                        </div>
                         <button type="submit" :disabled="!topic.trim() || isGenerating" class="auth-primary-button inline-flex min-h-12 w-full items-center justify-center px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">
                             Generate topic quiz
                         </button>
-                        <p x-show="errorMessage" x-text="errorMessage" x-cloak class="rounded-lg border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert"></p>
+                        <p x-show="errorMessage" x-text="errorMessage" x-cloak class="rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-100" role="alert"></p>
                     </form>
 
                     <div x-show="isGenerating" x-cloak class="mt-6 space-y-4" role="status" aria-live="polite">
-                        <p class="font-semibold text-violet-100" x-text="statusMessage"></p>
+                        <p class="font-semibold text-accent-200" x-text="statusMessage"></p>
                         <div class="h-3 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz generation progress" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
-                            <div class="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-700" :style="'width: ' + Math.round(progress) + '%'"></div>
+                            <div class="h-full rounded-full bg-gradient-to-r from-accent-600 to-accent-400 transition-[width] duration-700" :style="'width: ' + Math.round(progress) + '%'"></div>
                         </div>
                     </div>
                 </section>
 
-                <section class="app-glass-panel rounded-2xl border p-5 sm:p-7" aria-labelledby="document-quiz-heading"
+                <section class="app-glass-panel p-5 sm:p-7" aria-labelledby="document-quiz-heading"
                     x-data="{
                         title: '',
                         language: 'PHP',
@@ -140,6 +153,7 @@
                                 formData.append('title', this.title.trim());
                                 formData.append('language', this.language);
                                 formData.append('count', this.count || 0);
+                                formData.append('seconds_per_question', window.normalizeQuestionTimer(this.$refs.secondsPerQuestion.value, true));
                                 formData.append('quiz_format', this.quizFormat);
                                 formData.append('_token', '{{ csrf_token() }}');
                                 const response = await fetch('{{ route('student.quiz.generate.document') }}', {
@@ -163,8 +177,8 @@
                             }
                         }
                     }">
-                    <h2 id="document-quiz-heading" class="text-xl font-bold text-[#F8FAFC]">Generate from a PDF</h2>
-                    <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Use your course material to create a source-grounded quiz.</p>
+                    <h2 id="document-quiz-heading" class="text-xl font-bold tracking-tight text-ink-text">Generate from a PDF</h2>
+                    <p class="mt-1 text-sm leading-6 text-ink-subtle">Use your course material to create a source-grounded quiz.</p>
 
                     <form @submit.prevent="generateFromPdf" class="mt-6 space-y-4" x-show="!isGenerating">
                         <div>
@@ -182,9 +196,16 @@
                         </div>
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div>
-                                <label for="document-count" class="auth-label">Question count <span class="font-normal text-[#A59EB8]">(optional)</span></label>
+                                <label for="document-count" class="auth-label">Question count <span class="font-normal text-ink-subtle">(optional)</span></label>
                                 <input id="document-count" type="number" x-model="count" min="0" max="150" class="auth-input mt-2" placeholder="Automatic">
-                                <p class="mt-1 text-xs text-[#A59EB8]">Blank or 0: generate up to 150. Fewer questions are returned when the source contains fewer.</p>
+                                <p class="mt-1 text-xs leading-5 text-ink-subtle">Blank or 0: generate up to 150. Fewer questions are returned when the source contains fewer.</p>
+                            </div>
+                            <div>
+                                <label for="document-seconds-per-question" class="auth-label">Seconds per question</label>
+                                <input id="document-seconds-per-question" x-ref="secondsPerQuestion" name="seconds_per_question" type="number" min="0" max="100" step="1" value="20" placeholder="20 (default)" class="auth-input mt-2"
+                                    @input="$event.target.value = window.normalizeQuestionTimer($event.target.value)"
+                                    @blur="$event.target.value = window.normalizeQuestionTimer($event.target.value, true)">
+                                <p class="mt-1 text-xs leading-5 text-ink-subtle">1–100s (leave blank or 0 for default 20s; values above 100 cap at 100s)</p>
                             </div>
                             <div>
                                 <label for="document-format" class="auth-label">Question format</label>
@@ -192,27 +213,27 @@
                                     <option value="multiple_choice">Multiple choice</option>
                                     <option value="fill_in_the_blank">Fill in the blank</option>
                                 </select>
-                                <p class="mt-1 text-xs text-[#A59EB8]" x-text="quizFormat === 'multiple_choice' ? 'Four answer choices.' : 'Type a short answer.'"></p>
+                                <p class="mt-1 text-xs leading-5 text-ink-subtle" x-text="quizFormat === 'multiple_choice' ? 'Four answer choices.' : 'Type a short answer.'"></p>
                             </div>
                         </div>
                         <div>
                             <label for="document-pdf" class="auth-label">PDF file</label>
                             <input id="document-pdf" type="file" x-ref="pdf" accept="application/pdf" required @change="selectPdf($event)" class="professor-file-input mt-2 block w-full" aria-describedby="student-pdf-guidance">
-                            <p id="student-pdf-guidance" class="mt-1 text-xs text-[#A59EB8]">PDF only · maximum 20 MB. Text is extracted locally when possible; if extraction requires a provider, Gemini may receive the PDF. Extracted text is sent to Groq for quiz generation. Review provider data-handling terms before uploading sensitive material.</p>
-                            <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-violet-100" aria-live="polite"><span class="font-semibold">Selected:</span> <span x-text="fileName"></span></p>
+                            <p id="student-pdf-guidance" class="mt-1 text-xs leading-5 text-ink-subtle">PDF only · maximum 20 MB. Text is extracted locally when possible; if extraction requires a provider, Gemini may receive the PDF. Extracted text is sent to Groq for quiz generation. Review provider data-handling terms before uploading sensitive material.</p>
+                            <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-accent-200" aria-live="polite"><span class="font-semibold">Selected:</span> <span x-text="fileName"></span></p>
                         </div>
                         <button type="submit" :disabled="isGenerating" class="auth-primary-button inline-flex min-h-12 w-full items-center justify-center px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60">
                             Generate quiz from PDF
                         </button>
-                        <p x-show="errorMessage" x-text="errorMessage" x-cloak class="rounded-lg border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert"></p>
+                        <p x-show="errorMessage" x-text="errorMessage" x-cloak class="rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-100" role="alert"></p>
                     </form>
 
                     <div x-show="isGenerating" x-cloak class="mt-6 space-y-4" role="status" aria-live="polite">
-                        <p class="font-semibold text-violet-100" x-text="statusMessage"></p>
+                        <p class="font-semibold text-accent-200" x-text="statusMessage"></p>
                         <div class="h-3 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Document quiz generation progress" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
-                            <div class="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-700" :style="'width: ' + Math.round(progress) + '%'"></div>
+                            <div class="h-full rounded-full bg-gradient-to-r from-accent-600 to-accent-400 transition-[width] duration-700" :style="'width: ' + Math.round(progress) + '%'"></div>
                         </div>
-                        <p class="text-xs text-[#A59EB8]">Keep this page open while the document is processed.</p>
+                        <p class="text-xs leading-5 text-ink-subtle">Keep this page open while the document is processed.</p>
                     </div>
                 </section>
             </div>

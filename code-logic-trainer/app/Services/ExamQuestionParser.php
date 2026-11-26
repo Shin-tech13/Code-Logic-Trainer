@@ -6,9 +6,8 @@ use App\Exceptions\InvalidQuizOutputException;
 
 class ExamQuestionParser
 {
+    // Use local parsing only when the PDF includes an explicit answer key.
     /**
-     * Parse a numbered multiple-choice exam only when its answer key is explicit.
-     *
      * @return array<int, array{question_text: string, options: array<int,string>, question_type: string, correct_answer: string, accepted_answers: array<int,string>, explanation: string, needs_review: bool}>|null
      */
     public function parse(string $sourceText, ?int $count, string $format): ?array

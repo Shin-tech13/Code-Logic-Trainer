@@ -1,10 +1,10 @@
 <section class="space-y-6" aria-labelledby="delete-account-heading">
     <header>
-        <h2 id="delete-account-heading" class="text-lg font-semibold text-[#F8FAFC]">
+        <h2 id="delete-account-heading" class="text-lg font-semibold tracking-tight text-ink-text">
             {{ __('Delete Account') }}
         </h2>
 
-        <p class="mt-1 max-w-2xl text-sm leading-6 text-[#A59EB8]">
+        <p class="mt-1 max-w-2xl text-sm leading-6 text-ink-subtle">
             {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Before deleting your account, please download any data or information that you wish to retain.') }}
         </p>
     </header>
@@ -19,11 +19,11 @@
             @csrf
             @method('delete')
 
-            <h2 class="text-lg font-semibold text-[#F8FAFC]">
+            <h2 class="text-lg font-semibold tracking-tight text-ink-text">
                 {{ __('Are you sure you want to delete your account?') }}
             </h2>
 
-            <p class="mt-2 text-sm leading-6 text-[#B8AEC9]">
+            <p class="mt-2 text-sm leading-6 text-ink-subtle">
                 {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.') }}
             </p>
 
@@ -41,12 +41,12 @@
                 <x-input-error :messages="$errors->userDeletion->get('password')" class="mt-2" />
             </div>
 
-            <div class="mt-6 flex justify-end">
+            <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <x-secondary-button class="app-secondary-button" x-on:click="$dispatch('close')">
                     {{ __('Cancel') }}
                 </x-secondary-button>
 
-                <x-danger-button class="danger-confirm-button ms-3">
+                <x-danger-button class="danger-confirm-button sm:ms-3">
                     {{ __('Delete Account') }}
                 </x-danger-button>
             </div>

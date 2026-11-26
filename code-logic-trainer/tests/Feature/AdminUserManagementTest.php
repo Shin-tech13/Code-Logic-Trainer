@@ -180,6 +180,7 @@ test('whitelisted student registration records the professor and remains pending
         'student_id' => 'REG-1001',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
+        'terms' => '1',
     ])->assertRedirect(route('register.confirmation'))
         ->assertSessionHas('registration_login_address', 'newstudent@codelogic.com');
 
@@ -200,6 +201,7 @@ test('admin login redirects to user management without student whitelist require
     $this->post(route('login'), [
         'email' => $admin->email,
         'password' => 'StrongPassword123!',
+        'terms' => '1',
     ])->assertRedirect(route('users.index'));
 });
 

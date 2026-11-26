@@ -1,10 +1,10 @@
 <section>
     <header>
-        <h2 class="text-lg font-semibold text-[#F8FAFC]">
+        <h2 class="text-lg font-semibold tracking-tight text-ink-text">
             {{ __('Profile Information') }}
         </h2>
 
-        <p class="mt-1 text-sm text-[#A59EB8]">
+        <p class="mt-1 text-sm leading-6 text-ink-subtle">
             {{ __("Your recovery email is private and is used for account notifications and password recovery.") }}
         </p>
     </header>
@@ -21,7 +21,7 @@
 
         <div>
             <x-input-label for="login_address" class="auth-label" :value="__('Code Logic login address')" />
-            <p id="login-address-help" class="mt-1 text-xs text-[#A59EB8]">{{ __('This account identifier cannot be changed.') }}</p>
+            <p id="login-address-help" class="mt-1 text-xs leading-5 text-ink-subtle">{{ __('This account identifier cannot be changed.') }}</p>
             <x-text-input id="login_address" type="email" class="auth-input app-readonly-input mt-2 block w-full" :value="$user->email" readonly aria-describedby="login-address-help" />
         </div>
 
@@ -49,15 +49,15 @@
                 </div>
                 <div class="sm:col-span-2">
                     <p class="auth-label">{{ __('Class') }}</p>
-                    <p class="mt-2 rounded-xl border border-white/10 bg-[#0F0B1A]/75 px-4 py-3 text-sm text-[#D8CFE8]">
+                    <p class="mt-2 rounded-[var(--radius-control)] border border-white/10 bg-ink-950/50 px-4 py-3 text-sm leading-5 text-ink-soft">
                         {{ $classrooms->isNotEmpty() ? $classrooms->pluck('title')->join(', ') : __('Not assigned') }}
                     </p>
                 </div>
             </div>
         @endif
 
-        <div class="flex items-center gap-4">
-            <x-primary-button class="auth-primary-button">{{ __('Save profile') }}</x-primary-button>
+        <div class="flex min-h-11 flex-wrap items-center gap-4">
+            <x-primary-button class="auth-primary-button min-h-11">{{ __('Save profile') }}</x-primary-button>
 
             @if (session('status') === 'profile-updated')
                 <p

@@ -4,23 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
+use App\Support\QuestionTimer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StudentLiveQuizController extends Controller
 {
-    /**
-     * Join page: enter the quiz code.
-     */
     public function join()
     {
         return view('student.join');
     }
 
-    /**
-     * Submit a quiz code and join the session (or land in its lobby).
-     */
     public function joinSession(Request $request)
     {
         $request->validate([
@@ -40,7 +36,7 @@ class StudentLiveQuizController extends Controller
             ]);
         }
 
-        // Late joins allowed even after official start.
+        // Students may join before or after the exam starts.
         $participant = SessionParticipant::firstOrCreate(
             [
                 'quiz_session_id' => $session->id,
@@ -55,9 +51,6 @@ class StudentLiveQuizController extends Controller
         return redirect()->route('student.live.lobby', $session->id);
     }
 
-    /**
-     * Student lobby / waiting room (and live quiz if already started).
-     */
     public function lobby(QuizSession $session)
     {
         if ($session->type !== 'live') {
@@ -78,10 +71,6 @@ class StudentLiveQuizController extends Controller
         return view('student.lobby', compact('session', 'participant'));
     }
 
-    /**
-     * JSON poll endpoint for the student lobby.
-     * Returns session status, participant list, and (when started) redirect target.
-     */
     public function lobbyStatus(QuizSession $session)
     {
         if ($session->type !== 'live') {
@@ -104,6 +93,7 @@ class StudentLiveQuizController extends Controller
             'quiz_code'     => $session->quiz_code,
             'quiz_title'    => $session->quiz->title,
             'question_count'=> $session->quiz->question_count,
+            'seconds_per_question' => QuestionTimer::normalize($session->seconds_per_question),
             'started_at'    => $session->started_at?->toIso8601String(),
             'participants'  => $session->participants->map(fn ($p) => [
                 'name'       => $p->student->name,
@@ -113,9 +103,6 @@ class StudentLiveQuizController extends Controller
         ]);
     }
 
-    /**
-     * Live quiz-taking screen (shows questions once the session started).
-     */
     public function take(QuizSession $session)
     {
         if ($session->type !== 'live') {
@@ -135,13 +122,111 @@ class StudentLiveQuizController extends Controller
         }
 
         $session->load('quiz.questions');
+        $secondsPerQuestion = QuestionTimer::normalize($session->seconds_per_question);
+        $examActive = $session->status === 'in_progress'
+            && in_array($participant->status, ['joined', 'in_progress'], true);
 
-        return view('student.take', compact('session', 'participant'));
+        return view('student.take', compact('session', 'participant', 'examActive', 'secondsPerQuestion'));
     }
 
-    /**
-     * Submit the student's live quiz score.
-     */
+    // Record visibility and focus loss for the professor.
+    public function flagTabSwitch(QuizSession $session)
+    {
+        $participant = DB::transaction(function () use ($session) {
+            $lockedSession = QuizSession::query()
+                ->whereKey($session->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($lockedSession->type === 'live', 404);
+            abort_unless($lockedSession->status === 'in_progress', 409, 'This live quiz is not in progress.');
+
+            $participant = SessionParticipant::query()
+                ->where('quiz_session_id', $lockedSession->id)
+                ->where('student_id', Auth::id())
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($participant, 403, 'You are not a participant in this session.');
+            abort_unless(
+                in_array($participant->status, ['joined', 'in_progress'], true),
+                409,
+                'This participant is no longer taking the quiz.'
+            );
+
+            $participant->tab_switch_count++;
+            $participant->last_tab_switch_at = now();
+            $participant->last_tab_switch_reason = 'Tab switch / window blur detected';
+            $participant->save();
+
+            return $participant;
+        });
+
+        return response()->json([
+            'flagged' => true,
+            'tab_switch_count' => $participant->tab_switch_count,
+            'last_flagged_at' => $participant->last_tab_switch_at->toIso8601String(),
+            'reason' => $participant->last_tab_switch_reason,
+        ]);
+    }
+
+    // Keep in-progress answers visible to the professor's live analytics.
+    public function saveProgress(Request $request, QuizSession $session)
+    {
+        $validated = $request->validate([
+            'question_id' => ['required', 'integer'],
+            'answer' => ['present', 'nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($validated, $session) {
+            $lockedSession = QuizSession::query()
+                ->whereKey($session->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless($lockedSession->type === 'live', 404);
+            abort_unless($lockedSession->status === 'in_progress', 409, 'This live quiz is not accepting answers.');
+
+            $participant = SessionParticipant::query()
+                ->where('quiz_session_id', $lockedSession->id)
+                ->where('student_id', Auth::id())
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless(
+                $participant && in_array($participant->status, ['joined', 'in_progress'], true),
+                403,
+                'You are not an active participant in this session.'
+            );
+
+            $quiz = $lockedSession->quiz;
+            abort_unless($quiz, 404);
+            $question = $quiz->questions()->whereKey($validated['question_id'])->first();
+            abort_unless($question, 404, 'This question does not belong to the live quiz.');
+
+            $answer = trim((string) $validated['answer']);
+            $normalizedOptions = array_map(
+                static fn ($option) => trim((string) $option),
+                $question->options ?? []
+            );
+
+            if ($answer !== ''
+                && $question->question_type !== 'fill_in_the_blank'
+                && ! in_array($answer, $normalizedOptions, true)) {
+                abort(422, 'The submitted answer is not one of the available options.');
+            }
+
+            $answers = $participant->answers ?? [];
+            $answers[(string) $question->id] = $answer;
+            $participant->update([
+                'answers' => $answers,
+                'status' => 'in_progress',
+            ]);
+        });
+
+        return response()->json(['saved' => true]);
+    }
+
     public function submit(Request $request, QuizSession $session)
     {
         if ($session->type !== 'live') {
@@ -208,9 +293,6 @@ class StudentLiveQuizController extends Controller
         ]);
     }
 
-    /**
-     * Completion screen for a live quiz.
-     */
     public function complete(QuizSession $session)
     {
         if ($session->type !== 'live') {

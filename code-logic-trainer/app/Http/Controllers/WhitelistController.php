@@ -10,9 +10,6 @@ use Illuminate\Validation\Rule;
 
 class WhitelistController extends Controller
 {
-    /**
-     * Show the whitelist management dashboard.
-     */
     public function index()
     {
         $students = WhitelistedStudent::where('professor_id', Auth::id())
@@ -23,10 +20,7 @@ class WhitelistController extends Controller
         return view('professor.whitelist', compact('students'));
     }
 
-    /**
-     * Add one or more students to the whitelist.
-     * Accepts either a single "email"/"name" pair or a bulk "emails" list.
-     */
+    // Accept one student or a bulk email list.
     public function store(Request $request)
     {
         $request->validate([
@@ -86,9 +80,6 @@ class WhitelistController extends Controller
         ]);
     }
 
-    /**
-     * Remove a student from the whitelist.
-     */
     public function destroy(WhitelistedStudent $student)
     {
         if ($student->professor_id !== Auth::id()) {
@@ -103,18 +94,13 @@ class WhitelistController extends Controller
         return back()->with('status', "{$email} removed from the whitelist.");
     }
 
-    /**
-     * Keep the users.is_whitelisted flag in sync with the whitelist table.
-     */
+    // Keep the cached user flag aligned with the whitelist table.
     protected function syncUserWhitelistFlag(string $email): void
     {
         $stillWhitelisted = WhitelistedStudent::where('email', $email)->exists();
         User::where('personal_email', $email)->update(['is_whitelisted' => $stillWhitelisted]);
     }
 
-    /**
-     * Derive a display name from an email address.
-     */
     protected function deriveName(string $email): string
     {
         $local = strstr($email, '@', true) ?: $email;

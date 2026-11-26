@@ -17,17 +17,11 @@ use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
     public function create(): View
     {
         return view('auth.register');
     }
 
-    /**
-     * Show the one-time registration confirmation.
-     */
     public function confirmation(Request $request): View|RedirectResponse
     {
         $loginAddress = $request->session()->pull('registration_login_address');
@@ -41,11 +35,7 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws ValidationException
-     */
+    /** @throws ValidationException */
     public function store(
         Request $request,
         CodeLogicLoginAddress $loginAddress,
@@ -58,6 +48,9 @@ class RegisteredUserController extends Controller
             'year_level' => ['required', 'string', 'max:50'],
             'student_id' => ['required', 'string', 'max:100', 'unique:users,student_id'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'terms' => ['accepted'],
+        ], [
+            'terms.accepted' => 'You must agree to the User Agreement before continuing.',
         ]);
 
         $user = DB::transaction(function () use ($validated, $loginAddress) {

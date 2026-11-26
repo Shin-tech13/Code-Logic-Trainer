@@ -15,7 +15,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->foreignId('source_file_id')->nullable()->constrained('uploaded_files')->onDelete('set null');
             $table->unsignedInteger('question_count')->default(0);
-            $table->string('status')->default('draft'); // draft, ready
+            $table->string('status')->default('draft'); // draft or ready
             $table->timestamps();
         });
     }

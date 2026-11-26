@@ -23,7 +23,7 @@
 <div {{ $attributes->class(['space-y-2 break-words']) }}>
     @foreach ($segments as $segment)
         @if ($segment['type'] === 'code')
-            <pre class="overflow-x-auto rounded-lg border border-violet-300/15 bg-[#0F0B1A]/90 p-3 font-mono text-sm leading-6 text-violet-100"><code>{{ $segment['content'] }}</code></pre>
+            <pre class="overflow-x-auto rounded-[var(--radius-field)] border border-accent-300/15 bg-ink-950/70 p-3 font-mono text-sm leading-6 text-accent-100"><code>{{ $segment['content'] }}</code></pre>
         @elseif ($segment['content'] !== '')
             <p class="whitespace-pre-wrap leading-7 text-inherit">{{ $segment['content'] }}</p>
         @endif

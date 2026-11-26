@@ -21,7 +21,7 @@ class CodeChallengeSeeder extends Seeder
 
 function sumArray(array $numbers): int
 {
-    // Return the sum of all numbers.
+    // Replace this placeholder with your implementation.
     return 0;
 }
 PHP,
@@ -47,7 +47,7 @@ PHP,
 
 function isEven(int $number): bool
 {
-    // Return whether the number is even.
+    // Replace this placeholder with your implementation.
     return false;
 }
 PHP,

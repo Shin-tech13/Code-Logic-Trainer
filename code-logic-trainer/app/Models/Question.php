@@ -22,7 +22,7 @@ class Question extends Model
     ];
 
     protected $casts = [
-        'options' => 'array', // Automatically casts JSON options column into a PHP array para maayos ang option access
+        'options' => 'array',
         'accepted_answers' => 'array',
         'needs_review' => 'boolean',
     ];
@@ -59,13 +59,11 @@ class Question extends Model
         return mb_strtolower($collapsedWhitespace, 'UTF-8');
     }
 
-    // The quiz session this question belongs to
     public function quizSession()
     {
         return $this->belongsTo(QuizSession::class);
     }
 
-    // The professor-created quiz this question belongs to
     public function quiz()
     {
         return $this->belongsTo(Quiz::class);

@@ -25,11 +25,7 @@ class QuizGeneratorService
         $this->model = config('services.groq.model') ?: env('GROQ_MODEL', 'openai/gpt-oss-120b');
     }
 
-    /**
-     * Generate professor document questions using the existing Groq chat-completions configuration.
-     *
-     * @return array<int, array{question_text: string, options: array<int,string>, question_type: string, correct_answer: string, accepted_answers: array<int,string>, explanation: string, needs_review: bool}>
-     */
+    /** @return array<int, array{question_text: string, options: array<int,string>, question_type: string, correct_answer: string, accepted_answers: array<int,string>, explanation: string, needs_review: bool}> */
     public function generateDocumentQuizFromText(
         string $sourceText,
         ?int $count = null,

@@ -2,40 +2,40 @@
     <div class="auth-shell relative isolate min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div class="ambient-orb ambient-orb--violet" aria-hidden="true"></div>
         <div class="ambient-orb ambient-orb--indigo" aria-hidden="true"></div>
-        <div class="ambient-orb ambient-orb--cyan" aria-hidden="true"></div>
+        <div class="ambient-orb ambient-orb--plum" aria-hidden="true"></div>
 
         <main class="relative z-10 mx-auto max-w-3xl space-y-6">
-            <section class="app-glass-panel rounded-2xl border p-4" aria-label="Quiz progress">
+            <section class="app-glass-panel p-4" aria-label="Quiz progress">
                 <div class="mb-2 flex items-center justify-between">
-                    <span class="text-sm font-bold text-violet-200">Quiz progress</span>
-                    <span id="progress-text" class="text-sm font-bold text-[#F8FAFC]">0%</span>
+                    <span class="text-sm font-bold text-accent-200">Quiz progress</span>
+                    <span id="progress-text" class="text-sm font-bold tabular-nums text-ink-text">0%</span>
                 </div>
                 <div class="h-3 w-full overflow-hidden rounded-full bg-white/10">
-                    <div id="progress-bar" class="h-full w-0 bg-gradient-to-r from-violet-700 to-violet-400 transition-all duration-500"></div>
+                    <div id="progress-bar" class="h-full w-0 rounded-full bg-accent-500 transition-[width] duration-500"></div>
                 </div>
             </section>
 
-            <section class="app-glass-panel rounded-2xl border p-5 sm:p-7" id="quiz-box">
+            <section class="app-glass-panel p-5 sm:p-7" id="quiz-box">
                 <div class="mb-5 flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-violet-300">{{ $session->language }} practice</p>
-                        <h1 class="mt-1 text-xl font-bold text-[#F8FAFC]">{{ $session->topic }}</h1>
+                        <p class="text-xs font-semibold tracking-wide text-accent-300">{{ $session->language }} practice</p>
+                        <h1 class="mt-1 text-xl font-bold tracking-tight text-ink-text">{{ $session->topic }}</h1>
                     </div>
                     <div class="flex flex-col items-end gap-2">
-                        <span class="text-sm font-semibold text-[#C8BED6]" id="question-counter">Question 1 of {{ count($session->questions) }}</span>
-                        <span id="question-timer" role="timer" aria-live="off" class="rounded-full border border-violet-300/20 bg-violet-300/10 px-4 py-2 text-base font-bold tabular-nums text-violet-100">00:10</span>
+                        <span class="text-sm font-semibold tabular-nums text-ink-muted" id="question-counter">Question 1 of {{ count($session->questions) }}</span>
+                        <span id="question-timer" role="timer" aria-live="off" class="rounded-full border border-accent-300/20 bg-accent-300/10 px-4 py-2 text-base font-bold tabular-nums text-accent-100">{{ sprintf('%02d:%02d', intdiv($secondsPerQuestion, 60), $secondsPerQuestion % 60) }}</span>
                     </div>
                 </div>
 
                 @foreach ($session->questions as $index => $question)
                     <div class="question-slide {{ $index > 0 ? 'hidden' : '' }}" data-index="{{ $index }}"
                         data-question-id="{{ $question->id }}" data-question-type="{{ $question->question_type ?? 'multiple_choice' }}">
-                        <pre class="mb-6 overflow-x-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-[#0F0B1A]/75 p-4 font-mono text-sm text-[#E8E2F0]">{{ $question->question_text }}</pre>
+                        <pre class="mb-6 overflow-x-auto whitespace-pre-wrap rounded-[var(--radius-control)] border border-white/10 bg-ink-950/70 p-4 font-mono text-sm leading-6 text-ink-soft">{{ $question->question_text }}</pre>
 
                         @if (($question->question_type ?? 'multiple_choice') === 'multiple_choice')
                             <div class="mb-4 grid grid-cols-1 gap-3">
                                 @foreach ($question->options ?? [] as $option)
-                                    <button type="button" class="option-btn app-secondary-button min-h-12 w-full px-4 py-3 text-left text-sm font-medium text-[#E8E2F0] hover:border-violet-300/40 hover:bg-violet-300/[0.08]" data-option="{{ $option }}">
+                                    <button type="button" class="option-btn app-secondary-button min-h-12 w-full px-4 py-3 text-left text-sm font-medium text-ink-soft hover:border-violet-300/40 hover:bg-violet-300/[0.08]" data-option="{{ $option }}">
                                         {{ $option }}
                                     </button>
                                 @endforeach
@@ -49,27 +49,27 @@
                         @endif
 
                         <div class="answer-feedback hidden rounded-xl border border-white/10 p-4" role="status" aria-live="polite">
-                            <p class="feedback-status font-bold text-[#F8FAFC]"></p>
+                            <p class="feedback-status font-bold text-ink-text"></p>
                             <p class="feedback-correct-answer mt-2 hidden text-emerald-100">
                                 <span class="font-semibold">Correct answer:</span>
                                 <span class="feedback-correct-answer-text"></span>
                             </p>
-                            <p class="feedback-explanation mt-2 hidden text-[#D8CFE8]">
+                            <p class="feedback-explanation mt-2 hidden leading-6 text-ink-soft">
                                 <span class="font-semibold">Explanation:</span>
                                 <span class="feedback-explanation-text"></span>
                             </p>
                             <button type="button" class="continue-question auth-primary-button mt-4 hidden min-h-10 px-4 py-2 text-sm font-semibold">Continue</button>
                         </div>
-                        <div class="answer-feedback-error mt-3 hidden rounded-lg border border-rose-300/25 bg-rose-400/10 p-3 text-sm text-rose-100" role="alert">
+                        <div class="answer-feedback-error mt-3 hidden rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 p-3 text-sm leading-5 text-rose-100" role="alert">
                             <p>We couldn’t check your answer. Please try again.</p>
-                            <button type="button" class="retry-answer mt-2 font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300">Retry</button>
+                            <button type="button" class="retry-answer mt-2 min-h-11 font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300">Retry</button>
                         </div>
                     </div>
                 @endforeach
             </section>
 
-            <div id="submission-error" class="app-glass-panel hidden rounded-2xl border border-rose-300/25 p-6 text-center text-rose-100" role="alert">
-                <h2 class="text-lg font-bold text-[#F8FAFC]">We couldn’t submit your quiz</h2>
+            <div id="submission-error" class="app-glass-panel hidden border-rose-300/25 p-6 text-center text-rose-100" role="alert">
+                <h2 class="text-lg font-bold tracking-tight text-ink-text">We couldn’t submit your quiz</h2>
                 <p id="submission-error-message" class="mt-2"></p>
                 <a href="{{ route('student.dashboard') }}" class="auth-primary-button mt-4 inline-flex min-h-11 items-center px-6 py-3 font-semibold">Return to Dashboard</a>
             </div>
@@ -86,7 +86,7 @@
             const progressText = document.getElementById('progress-text');
             const counter = document.getElementById('question-counter');
             const timer = document.getElementById('question-timer');
-            const questionTimeLimit = 10;
+            const questionTimeLimit = @json($secondsPerQuestion);
             const timeoutAnswer = @json(\App\Http\Controllers\StudentQuizController::TIMEOUT_ANSWER);
             let timerInterval = null;
             let remainingSeconds = questionTimeLimit;
@@ -98,11 +98,13 @@
             }
 
             function renderTimer() {
-                timer.textContent = `00:${String(remainingSeconds).padStart(2, '0')}`;
+                const minutes = Math.floor(remainingSeconds / 60);
+                const seconds = remainingSeconds % 60;
+                timer.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
                 timer.classList.toggle('border-rose-300/30', remainingSeconds <= 3);
                 timer.classList.toggle('text-rose-100', remainingSeconds <= 3);
-                timer.classList.toggle('border-violet-300/20', remainingSeconds > 3);
-                timer.classList.toggle('text-violet-100', remainingSeconds > 3);
+                timer.classList.toggle('border-accent-300/20', remainingSeconds > 3);
+                timer.classList.toggle('text-accent-100', remainingSeconds > 3);
             }
 
             function stopTimer() {

@@ -1,5 +1,4 @@
 <x-app-layout>
-    <!-- Load Alpine.js via CDN (Fixes the undefined issue) -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
@@ -8,31 +7,30 @@
         }
     </style>
 
-    <div class="max-w-3xl mx-auto py-10 px-6 bg-white shadow rounded-lg">
+    <div class="mx-auto max-w-3xl rounded-[var(--radius-panel)] border border-white/10 bg-ink-800/80 px-5 py-7 shadow-[0_20px_48px_-32px_rgba(0,0,0,0.8)] sm:px-8 sm:py-9">
         @if (isset($session) && $session)
-            {{-- ===================== Quiz Display (Fallback if they visit dashboard directly) ===================== --}}
-            <h2 class="text-xl font-bold mb-4 text-indigo-600">
+            <h2 class="mb-4 text-xl font-bold tracking-tight text-accent-200">
                 Quiz: {{ $session->language }} - {{ $session->topic }}
             </h2>
 
             <div class="mb-6">
                 <a href="{{ route('student.play', $session->id) }}"
-                    class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+                    class="app-secondary-button inline-flex min-h-11 items-center justify-center px-4 py-2 text-sm font-semibold">
                     Play Latest Quiz
                 </a>
             </div>
 
             <div id="quiz-container">
                 @foreach ($session->questions as $index => $question)
-                    <div class="question-card mb-6 p-4 border rounded-lg bg-gray-50 {{ $index > 0 ? 'hidden' : '' }}"
+                    <div class="question-card mb-6 rounded-[var(--radius-control)] border border-white/10 bg-ink-750/70 p-4 sm:p-5 {{ $index > 0 ? 'hidden' : '' }}"
                         data-index="{{ $index }}">
-                        <p class="font-semibold text-gray-800 mb-3">Q{{ $index + 1 }}:</p>
+                        <p class="mb-3 font-semibold text-ink-soft">Q{{ $index + 1 }}:</p>
 
-                        <pre class="bg-gray-900 text-green-400 p-3 rounded mb-4 text-sm font-mono whitespace-pre-wrap">{{ $question->question_text }}</pre>
+                        <pre class="mb-4 whitespace-pre-wrap rounded-[var(--radius-field)] border border-white/10 bg-ink-950/80 p-3 font-mono text-sm leading-6 text-accent-200">{{ $question->question_text }}</pre>
 
                         <div class="space-y-2">
                             @foreach ($question->options as $option)
-                                <label class="block p-3 border rounded bg-white cursor-default">
+                                <label class="block rounded-[var(--radius-field)] border border-white/10 bg-ink-800/80 p-3 text-sm leading-6 text-ink-muted cursor-default">
                                     <input type="radio" disabled class="mr-2"> {{ $option }}
                                 </label>
                             @endforeach
@@ -41,8 +39,7 @@
                 @endforeach
             </div>
         @else
-            {{-- ===================== Generator (Alpine.js inline) ===================== --}}
-            <div class="text-center py-8" x-data="{
+            <div class="py-5 text-center sm:py-8" x-data="{
                 language: 'PHP',
                 topic: '',
                 isGenerating: false,
@@ -100,7 +97,6 @@
 
                         const data = await response.json().catch(() => ({}));
 
-                        // LOGGING FOR DEBUGGING
                         console.log('Response from server:', data);
 
                         if (!response.ok || !data.success) {
@@ -111,11 +107,10 @@
                         this.progress = 100;
                         this.statusMessage = 'Summit path ready! Loading your quiz...';
 
-                        // LOGGING REDIRECT URL
                         console.log('Redirecting to:', data.redirect_url);
 
                         if (data.redirect_url) {
-                            // Give it a brief moment for the user to see 100%
+                            // Let the completed progress state remain visible briefly.
                             setTimeout(() => {
                                 window.location.assign(data.redirect_url);
                             }, 600);
@@ -133,16 +128,15 @@
                 }
             }">
 
-                <h2 class="text-2xl font-bold text-gray-800 mb-2">Welcome to your Code Logic Trainer!</h2>
-                <p class="text-gray-600 mb-6">Choose your parameters and watch our AI build your mountain path!</p>
+                <h2 class="mb-2 text-2xl font-bold tracking-tight text-ink-text sm:text-[1.75rem]">Welcome to your Code Logic Trainer!</h2>
+                <p class="mb-6 text-sm leading-6 text-ink-subtle sm:text-base">Choose your parameters and watch our AI build your mountain path!</p>
 
-                {{-- Form --}}
                 <form @submit.prevent="generateQuiz" class="space-y-4 max-w-md mx-auto text-left"
                     x-show="!isGenerating">
                     <div>
-                        <label for="language" class="block font-medium text-gray-700">Programming Language</label>
+                        <label for="language" class="block text-sm font-medium text-ink-soft">Programming Language</label>
                         <select id="language" name="language" x-model="language"
-                            class="w-full mt-1 border-gray-300 rounded-md shadow-sm">
+                            class="app-action-select mt-2 block w-full">
                             <option value="PHP">PHP</option>
                             <option value="JavaScript">JavaScript</option>
                             <option value="Python">Python</option>
@@ -151,34 +145,33 @@
                     </div>
 
                     <div>
-                        <label for="topic" class="block font-medium text-gray-700">Topic</label>
+                        <label for="topic" class="block text-sm font-medium text-ink-soft">Topic</label>
                         <input type="text" id="topic" name="topic" x-model="topic"
                             placeholder="e.g. Arrays, Loops, Object-Oriented Programming" required
-                            class="w-full mt-1 border-gray-300 rounded-md shadow-sm">
+                            class="app-action-select mt-2 block w-full">
                     </div>
 
                     <button type="submit" :disabled="!topic.trim() || isGenerating"
-                        class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="auth-primary-button min-h-11 w-full justify-center px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">
                         Generate AI Quiz
                     </button>
 
-                    <p x-show="errorMessage" x-text="errorMessage" class="text-sm text-red-600 mt-2" x-cloak></p>
+                    <p x-show="errorMessage" x-text="errorMessage" class="mt-2 text-sm text-rose-300" x-cloak></p>
                 </form>
 
-                {{-- Progress Bar --}}
                 <div x-show="isGenerating" x-cloak class="space-y-6 py-6 max-w-md mx-auto text-center">
                     <div class="space-y-2">
-                        <p class="text-lg font-semibold text-indigo-600 animate-pulse" x-text="statusMessage"></p>
-                        <p class="text-sm text-gray-500">Please stay on this page while Gemini constructs your code
+                        <p class="text-lg font-semibold text-accent-200" x-text="statusMessage"></p>
+                        <p class="text-sm leading-6 text-ink-subtle">Please stay on this page while Gemini constructs your code
                             trail...</p>
                     </div>
 
-                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
-                        <div class="bg-indigo-600 h-4 rounded-full transition-all duration-700 ease-out"
+                    <div class="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                        <div class="h-full rounded-full bg-accent-500 transition-[width] duration-700 ease-out"
                             :style="'width: ' + Math.round(progress) + '%'"></div>
                     </div>
 
-                    <p class="text-xs font-mono text-gray-400" x-text="Math.round(progress) + '% completed'"></p>
+                    <p class="font-mono text-xs tabular-nums text-ink-subtle" x-text="Math.round(progress) + '% completed'"></p>
                 </div>
             </div>
         @endif

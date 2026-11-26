@@ -13,25 +13,25 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
-        <main class="auth-shell relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-10 sm:px-6">
+        <main class="auth-shell relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-6 sm:px-6 sm:py-10">
             <div class="ambient-orb ambient-orb--violet" aria-hidden="true"></div>
             <div class="ambient-orb ambient-orb--indigo" aria-hidden="true"></div>
-            <div class="ambient-orb ambient-orb--cyan" aria-hidden="true"></div>
+            <div class="ambient-orb ambient-orb--plum" aria-hidden="true"></div>
 
-            <div class="relative z-10 mb-6 text-center">
-                <a href="/" class="inline-flex flex-col items-center rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-4 focus-visible:ring-offset-[#0D0916]">
-                    <span class="mx-auto rounded-2xl bg-white/90 p-3 shadow-[0_0_25px_rgba(139,92,246,0.4)]">
-                        <x-application-logo class="h-12 w-auto" />
+            <div class="relative z-10 mb-5 text-center sm:mb-6">
+                <a href="/" class="inline-flex flex-col items-center rounded-[var(--radius-control)] transition-opacity duration-quick hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-900">
+                    <span class="mx-auto rounded-[var(--radius-panel)] bg-ink-text/95 p-2.5 shadow-[0_12px_28px_-16px_rgba(139,92,246,0.8)] sm:p-3">
+                        <x-application-logo class="h-10 w-auto sm:h-12" />
                     </span>
-                    <span class="mt-3 text-xs font-bold uppercase tracking-[0.24em] text-[#E9D5FF]">CODE LOGIC TRAINER</span>
+                    <span class="mt-3 text-xs font-semibold tracking-wide text-accent-100">Code Logic Trainer</span>
                 </a>
             </div>
 
-            <section class="auth-card relative z-10 w-full max-w-md rounded-2xl border border-white/15 bg-[#1A132B]/70 px-6 py-8 shadow-[0_16px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:px-9 sm:py-9 @if ($errors->any()) auth-card--has-errors @endif">
+            <section class="app-glass-panel auth-card relative z-10 w-full max-w-[25rem] px-5 py-6 sm:px-8 sm:py-8 @if ($errors->any()) auth-card--has-errors @endif">
                 {{ $slot }}
             </section>
 
-            <p class="relative z-10 mt-6 text-center text-xs text-[#A59EB8]">
+            <p class="relative z-10 mt-5 text-center text-xs leading-5 text-ink-subtle sm:mt-6">
                 Learn, practice, and strengthen your coding logic.
             </p>
         </main>

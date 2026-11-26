@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth; // <-- Added this import
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\StudentQuizController;
 use App\Http\Controllers\StudentLiveQuizController;
 use App\Http\Controllers\ProfessorQuizController;
@@ -12,7 +12,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\ProfessorStudentController;
 
-// Homepage Root Route (Smart Redirect)
+// Route signed-in users to their role dashboard.
 Route::get('/', function () {
     if (! Auth::check()) {
         return redirect()->route('login');
@@ -33,7 +33,7 @@ Route::get('/', function () {
         : redirect()->route('student.dashboard');
 });
 
-// Catch default Breeze 'dashboard' redirect and send them to the right dashboard
+// Keep Breeze's dashboard URL role-aware.
 Route::get('/dashboard', function () {
     if (Auth::user()->isAdmin()) {
         return redirect()->route('users.index');
@@ -56,7 +56,7 @@ Route::middleware(['auth', 'account-approved', 'admin'])->prefix('admin')->name(
     Route::patch('/users/{user}/status', [AdminUserController::class, 'updateStatus'])->name('users.status.update');
 });
 
-// ===================== PROFESSOR ROUTES =====================
+// Professor routes
 Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor')->name('professor.')->group(function () {
     Route::get('/dashboard', [ProfessorQuizController::class, 'index'])->name('dashboard');
     Route::get('/students', [ProfessorStudentController::class, 'index'])->name('students.index');
@@ -64,27 +64,29 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
     Route::get('/students/{student}/edit', [ProfessorStudentController::class, 'edit'])->name('students.edit');
     Route::patch('/students/{student}', [ProfessorStudentController::class, 'update'])->name('students.update');
 
-    // Student whitelist management
+    // Whitelist management
     Route::get('/whitelist', [WhitelistController::class, 'index'])->name('whitelist.index');
     Route::post('/whitelist', [WhitelistController::class, 'store'])->name('whitelist.store');
     Route::delete('/whitelist/{student}', [WhitelistController::class, 'destroy'])->name('whitelist.destroy');
 
-    // PDF upload + AI quiz generation
+    // Document upload and quiz generation
     Route::post('/quizzes/generate', [ProfessorQuizController::class, 'uploadAndGenerate'])
         ->middleware('throttle:quiz-generation')
         ->name('quizzes.generate');
     Route::get('/quizzes/{quiz}', [ProfessorQuizController::class, 'show'])->name('quizzes.show');
+    Route::patch('/quizzes/{quiz}/settings', [ProfessorQuizController::class, 'updateSettings'])->name('quizzes.settings.update');
     Route::delete('/quizzes/{quiz}', [ProfessorQuizController::class, 'destroy'])->name('quizzes.destroy');
 
-    // Live quiz session lifecycle
+    // Live quiz sessions
     Route::post('/quizzes/{quiz}/launch', [ProfessorSessionController::class, 'launch'])->name('sessions.launch');
     Route::get('/sessions/{session}/lobby', [ProfessorSessionController::class, 'lobby'])->name('sessions.lobby');
     Route::get('/sessions/{session}/status', [ProfessorSessionController::class, 'lobbyStatus'])->name('sessions.status');
+    Route::patch('/sessions/{session}/timer', [ProfessorSessionController::class, 'updateTimer'])->name('sessions.timer.update');
     Route::post('/sessions/{session}/start', [ProfessorSessionController::class, 'start'])->name('sessions.start');
     Route::post('/sessions/{session}/end', [ProfessorSessionController::class, 'end'])->name('sessions.end');
 });
 
-// ===================== STUDENT ROUTES (self-study) =====================
+// Student self-study routes
 Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentQuizController::class, 'index'])->name('dashboard');
     Route::get('/history', [StudentQuizController::class, 'history'])->name('history');
@@ -108,23 +110,23 @@ Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefi
     });
 });
 
-// ===================== STUDENT ROUTES (live quiz) =====================
+// Student live-quiz routes
 Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('live')->name('student.live.')->group(function () {
     Route::get('/join', [StudentLiveQuizController::class, 'join'])->name('join');
     Route::post('/join', [StudentLiveQuizController::class, 'joinSession'])->name('join.store');
     Route::get('/session/{session}/lobby', [StudentLiveQuizController::class, 'lobby'])->name('lobby');
     Route::get('/session/{session}/status', [StudentLiveQuizController::class, 'lobbyStatus'])->name('status');
     Route::get('/session/{session}/take', [StudentLiveQuizController::class, 'take'])->name('take');
+    Route::post('/session/{session}/flag-tab-switch', [StudentLiveQuizController::class, 'flagTabSwitch'])->name('flag-tab-switch');
+    Route::post('/session/{session}/progress', [StudentLiveQuizController::class, 'saveProgress'])->name('progress');
     Route::post('/session/{session}/submit', [StudentLiveQuizController::class, 'submit'])->name('submit');
     Route::get('/session/{session}/complete', [StudentLiveQuizController::class, 'complete'])->name('complete');
 });
 
-// Profile Routes
 Route::middleware(['auth', 'account-approved'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// INCLUDE BREEZE AUTH ROUTES
 require __DIR__ . '/auth.php';

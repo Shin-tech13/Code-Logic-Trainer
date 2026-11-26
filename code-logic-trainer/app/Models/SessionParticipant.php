@@ -16,11 +16,16 @@ class SessionParticipant extends Model
         'score',
         'joined_at',
         'answers',
+        'tab_switch_count',
+        'last_tab_switch_at',
+        'last_tab_switch_reason',
     ];
 
     protected $casts = [
         'joined_at' => 'datetime',
         'answers' => 'array',
+        'tab_switch_count' => 'integer',
+        'last_tab_switch_at' => 'datetime',
     ];
 
     public function quizSession()

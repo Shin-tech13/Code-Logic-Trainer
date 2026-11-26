@@ -10,10 +10,10 @@ return new class extends Migration {
         Schema::create('quiz_sessions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('student_id')->constrained('users')->onDelete('cascade');
-            $table->string('language'); // Python, C++, JavaScript
-            $table->string('topic');    // Control Flow, OOP, etc.
+            $table->string('language'); // Examples: PHP, C++, JavaScript.
+            $table->string('topic');    // Examples: Control Flow, OOP.
             $table->integer('score')->default(0);
-            $table->string('status')->default('active'); // active, completed
+            $table->string('status')->default('active'); // active or completed
             $table->timestamps();
         });
     }

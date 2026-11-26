@@ -5,473 +5,299 @@
 @source '../views/**/*.blade.php';
 @source '../js/**/*.js';
 
+/* ============================================================================
+   Design tokens
+   Same-family refinement only. Every value below deepens or re-tunes the
+   violet / indigo / neutral ramp this app already uses. No element is moved
+   into a new color family; status colors (emerald / rose / amber) are kept.
+   ============================================================================ */
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Radii — deliberately varied: fields < controls < panels < overlays */
+    --radius-field: 0.5rem;
+    --radius-control: 0.75rem;
+    --radius-panel: 1rem;
+    --radius-modal: 1.25rem;
+
+    /* Ink — the app's existing violet-black surfaces, extended one step each way */
+    --color-ink-950: #08050e;
+    --color-ink-900: #0d0916;
+    --color-ink-850: #120d1f;
+    --color-ink-800: #150e24;
+    --color-ink-750: #1a132b;
+    --color-ink-700: #241b39;
+    --color-ink-650: #2f2549;
+
+    /* Text on ink */
+    --color-ink-text: #f8fafc;
+    --color-ink-soft: #e8e2f0;
+    --color-ink-muted: #c8bed6;
+    --color-ink-subtle: #a59eb8;
+    --color-ink-faint: #80778f;
+
+    /* Accent — the app's own violet ramp */
+    --color-accent-100: #ede9fe;
+    --color-accent-200: #ddd6fe;
+    --color-accent-300: #c4b5fd;
+    --color-accent-400: #a78bfa;
+    --color-accent-500: #8b5cf6;
+    --color-accent-600: #7c3aed;
+    --color-accent-700: #61288e;
+    --color-accent-800: #4c1d95;
+
+    /* Motion — one scale shared by every surface */
+    --ease-craft-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-craft-in: cubic-bezier(0.4, 0, 1, 1);
+    --duration-quick: 120ms;
+    --duration-base: 200ms;
+    --duration-enter: 320ms;
+
+    /* Retune Tailwind's default `transition` utility onto the motion scale */
+    --default-transition-duration: 200ms;
+    --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[x-cloak] {
-    display: none !important;
-}
-
-.auth-shell {
-    background: radial-gradient(ellipse at 50% 20%, #150e24 0%, #0d0916 72%);
-    isolation: isolate;
-}
-
-.admin-directory-shell {
-    background: radial-gradient(ellipse at 50% 0%, #150e24 0%, #0d0916 72%);
-}
-
-.app-glass-panel {
-    background: rgb(26 19 43 / 76%);
-    border-color: rgb(255 255 255 / 12%);
-    box-shadow: 0 16px 48px rgb(0 0 0 / 28%);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-}
-
-.app-secondary-button {
-    border: 1px solid rgb(255 255 255 / 18%);
-    border-radius: 0.75rem;
-    background: transparent;
-    color: #e9d5ff;
-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-
-.app-secondary-button:hover {
-    border-color: rgb(196 181 253 / 45%);
-    background: rgb(255 255 255 / 6%);
-    color: #fff;
-}
-
-.app-readonly-input {
-    border-color: rgb(255 255 255 / 10%);
-    background: rgb(255 255 255 / 4%);
-    color: #c9bfd7;
-    cursor: default;
-}
-
-.app-readonly-input:focus {
-    border-color: rgb(255 255 255 / 18%);
-    box-shadow: none;
-}
-
-.danger-outline-button {
-    border: 1px solid rgb(251 113 133 / 45%) !important;
-    border-radius: 0.75rem !important;
-    background: rgb(244 63 94 / 8%) !important;
-    color: #fecdd3 !important;
-    text-transform: none !important;
-    letter-spacing: normal !important;
-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
-}
-
-.danger-outline-button:hover {
-    border-color: rgb(251 113 133 / 70%) !important;
-    background: rgb(244 63 94 / 16%) !important;
-    color: #fff !important;
-}
-
-.danger-confirm-button {
-    border-radius: 0.75rem !important;
-    background: #be123c !important;
-    color: #fff !important;
-    text-transform: none !important;
-    letter-spacing: normal !important;
-    box-shadow: 0 8px 20px rgb(136 19 55 / 25%);
-}
-
-.danger-confirm-button:hover {
-    background: #e11d48 !important;
-}
-
-.danger-outline-button:focus-visible,
-.danger-confirm-button:focus-visible {
-    outline: 2px solid #fda4af !important;
-    outline-offset: 3px;
-}
-
-.app-secondary-button:focus-visible,
-.app-action-button:focus-visible,
-.app-action-select:focus-visible {
-    outline: 2px solid #a78bfa;
-    outline-offset: 3px;
-}
-
-.app-filter-chip {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid rgb(196 181 253 / 22%);
-    border-radius: 9999px;
-    background: rgb(139 92 246 / 9%);
-    padding: 0.25rem 0.625rem;
-    color: #e9d5ff;
-    font-size: 0.75rem;
-    line-height: 1rem;
-}
-
-.app-action-select {
-    min-height: 2.5rem;
-    border: 1px solid rgb(255 255 255 / 16%);
-    border-radius: 0.625rem;
-    background-color: rgb(15 11 26 / 88%);
-    padding: 0.5rem 2rem 0.5rem 0.75rem;
-    color: #f8fafc;
-    font-size: 0.8125rem;
-    line-height: 1.125rem;
-}
-
-.app-action-select option {
-    background: #1a132b;
-    color: #f8fafc;
-}
-
-.professor-file-input {
-    min-height: 3rem;
-    width: 100%;
-    overflow: hidden;
-    border: 1px solid rgb(255 255 255 / 15%);
-    border-radius: 0.7rem;
-    background: rgb(15 11 26 / 75%);
-    color: #d8cfe8;
-    font-size: 0.875rem;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.professor-file-input::file-selector-button {
-    min-height: 3rem;
-    margin-right: 0.875rem;
-    border: 0;
-    border-right: 1px solid rgb(255 255 255 / 12%);
-    background: rgb(139 92 246 / 12%);
-    padding: 0 0.875rem;
-    color: #e9d5ff;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 150ms ease;
-}
-
-.professor-file-input::file-selector-button:hover {
-    background: rgb(139 92 246 / 22%);
-}
-
-.professor-file-input:focus-visible {
-    border-color: #8b5cf6;
-    outline: none;
-    box-shadow: 0 0 0 4px rgb(139 92 246 / 25%);
-}
-
-.app-action-button {
-    min-height: 2.5rem;
-    border-radius: 0.625rem;
-    padding: 0.5rem 0.625rem;
-    color: #c4b5fd;
-    font-size: 0.75rem;
-    font-weight: 600;
-    transition: background-color 150ms ease, color 150ms ease;
-}
-
-.app-action-button:hover {
-    background: rgb(139 92 246 / 12%);
-    color: #fff;
-}
-
-.admin-directory-shell nav[role='navigation'] a,
-.admin-directory-shell nav[role='navigation'] span {
-    border-color: rgb(255 255 255 / 12%);
-    background-color: rgb(26 19 43 / 76%);
-    color: #d8cfe8;
-}
-
-.admin-directory-shell nav[role='navigation'] a:hover {
-    background-color: rgb(139 92 246 / 15%);
-    color: #fff;
-}
-
-.admin-directory-shell nav[role='navigation'] span[aria-current='page'] {
-    border-color: rgb(167 139 250 / 50%);
-    background-color: rgb(124 58 237 / 28%);
-    color: #fff;
-}
-
-.admin-directory-shell nav[role='navigation'] span[aria-disabled='true'] {
-    color: #80778f;
-}
-
-.ambient-orb {
-    position: absolute;
-    z-index: -1;
-    width: min(42rem, 85vw);
-    aspect-ratio: 1;
-    border-radius: 9999px;
-    filter: blur(88px);
-    pointer-events: none;
-    animation: orb-drift 18s ease-in-out infinite alternate;
-    will-change: transform;
-}
-
-.ambient-orb--violet {
-    top: -18rem;
-    left: -12rem;
-    background: rgb(97 40 142 / 45%);
-}
-
-.ambient-orb--indigo {
-    top: 16%;
-    right: -24rem;
-    width: min(48rem, 90vw);
-    background: rgb(79 70 229 / 30%);
-    animation-delay: -6s;
-}
-
-.ambient-orb--cyan {
-    bottom: -27rem;
-    left: 18%;
-    width: min(36rem, 75vw);
-    background: rgb(6 182 212 / 15%);
-    animation-delay: -12s;
-}
-
-.auth-card {
-    background: rgb(26 19 43 / 68%);
-    border-color: rgb(255 255 255 / 15%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    animation: auth-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.auth-card--has-errors {
-    animation:
-        auth-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both,
-        auth-shake 420ms 300ms ease-in-out both;
-}
-
-.auth-input {
-    border: 1px solid rgb(255 255 255 / 15%);
-    border-radius: 0.7rem;
-    background: rgb(15 11 26 / 75%);
-    color: #f8fafc;
-    width: 100%;
-    min-height: 3rem;
-    padding: 0.75rem 0.9rem;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
-}
-
-.auth-input--with-toggle {
-    padding-right: 3rem;
-}
-
-.auth-input::placeholder {
-    color: #9b93ad;
-    opacity: 1;
-}
-
-.auth-input:focus {
-    border-color: #8b5cf6;
-    outline: none;
-    box-shadow: 0 0 0 4px rgb(139 92 246 / 25%);
-}
-
-.auth-input:disabled {
-    cursor: not-allowed;
-    opacity: 0.65;
-}
-
-.auth-label {
-    display: block;
-    color: #e9d5ff;
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.25rem;
-}
-
-.auth-input-error {
-    color: #fda4af;
-}
-
-.auth-session-status {
-    border: 1px solid rgb(134 239 172 / 20%);
-    border-radius: 0.75rem;
-    background: rgb(34 197 94 / 8%);
-    padding: 0.75rem 0.875rem;
-    color: #bbf7d0;
-    line-height: 1.4;
-}
-
-.auth-checkbox {
-    height: 1rem;
-    width: 1rem;
-    border: 1px solid rgb(255 255 255 / 25%);
-    border-radius: 0.25rem;
-    background-color: rgb(15 11 26 / 75%);
-    color: #8b5cf6;
-}
-
-.auth-checkbox:focus {
-    --tw-ring-color: rgb(139 92 246 / 35%);
-    --tw-ring-offset-color: #1a132b;
-}
-
-.auth-password-toggle {
-    border-radius: 0 0.7rem 0.7rem 0;
-    transition: color 150ms ease;
-}
-
-.auth-link {
-    color: #c4b5fd;
-    transition: color 150ms ease;
-}
-
-.auth-link:hover {
-    color: #fff;
-}
-
-.auth-link:focus-visible {
-    border-radius: 0.25rem;
-    outline: 2px solid #8b5cf6;
-    outline-offset: 3px;
-}
-
-.auth-primary-button {
-    border: 0;
-    border-radius: 0.75rem;
-    background: linear-gradient(110deg, #7c3aed, #61288e);
-    color: #fff;
-    padding: 0.875rem 1rem;
-    text-transform: none;
-    letter-spacing: normal;
-    box-shadow: 0 0 22px rgb(124 58 237 / 28%);
-    transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
-}
-
-.auth-primary-button:hover {
-    background: linear-gradient(110deg, #8b5cf6, #7c3aed);
-    box-shadow: 0 0 28px rgb(139 92 246 / 42%);
-}
-
-.auth-primary-button:focus-visible {
-    outline: 2px solid #a78bfa;
-    outline-offset: 3px;
-}
-
-.auth-primary-button:active {
-    transform: scale(0.98);
-}
-
-.auth-primary-button:disabled {
-    cursor: wait;
-    opacity: 0.8;
-}
-
-.history-attempt > summary::-webkit-details-marker {
-    display: none;
-}
-
-.history-attempt > summary:hover {
-    background: rgb(255 255 255 / 3%);
-}
-
-.history-attempt[open] .history-expand-label--closed,
-.history-attempt:not([open]) .history-expand-label--open {
-    display: none;
-}
-
-.history-shell button[aria-pressed='true'] {
-    border-color: rgb(196 181 253 / 55%);
-    background: rgb(139 92 246 / 18%);
-    color: #fff;
-}
-
-.history-shell nav[role='navigation'] a,
-.history-shell nav[role='navigation'] span {
-    border-color: rgb(255 255 255 / 12%);
-    background-color: rgb(26 19 43 / 76%);
-    color: #d8cfe8;
-}
-
-.history-shell nav[role='navigation'] a:hover {
-    background-color: rgb(139 92 246 / 15%);
-    color: #fff;
-}
-
-.history-shell nav[role='navigation'] span[aria-current='page'] {
-    border-color: rgb(167 139 250 / 50%);
-    background-color: rgb(124 58 237 / 28%);
-    color: #fff;
-}
-
-.history-shell nav[role='navigation'] span[aria-disabled='true'] {
-    color: #80778f;
-}
-
-.history-shell nav[role='navigation'] a:focus-visible,
-.history-shell button:focus-visible,
-.history-attempt > summary:focus-visible {
-    outline: 2px solid #a78bfa;
-    outline-offset: 3px;
-}
-
-@keyframes orb-drift {
-    0% {
-        transform: translate3d(-1.5rem, -1rem, 0) scale(0.96);
+@layer base {
+    :root {
+        color-scheme: dark;
+        scrollbar-color: rgb(255 255 255 / 16%) transparent;
     }
 
-    50% {
-        transform: translate3d(1.5rem, 1rem, 0) scale(1.04);
+    body {
+        background-color: var(--color-ink-900);
+        color: var(--color-ink-text);
     }
 
-    100% {
-        transform: translate3d(-0.5rem, 2rem, 0) scale(1);
+    h1,
+    h2,
+    h3 {
+        text-wrap: balance;
+    }
+
+    h1,
+    h2 {
+        letter-spacing: -0.02em;
+    }
+
+    p {
+        text-wrap: pretty;
+    }
+
+    table {
+        font-variant-numeric: tabular-nums;
+    }
+
+    ::selection {
+        background-color: rgb(139 92 246 / 35%);
+        color: #fff;
+    }
+
+    [x-cloak] {
+        display: none !important;
     }
 }
 
-@keyframes auth-enter {
-    from {
-        opacity: 0;
-        translate: 0 0.65rem;
+@layer components {
+    /* ---------------------------------------------------------------------
+       Shells
+       Two-layer background: a violet bloom above, a deep ink gradient below.
+       --------------------------------------------------------------------- */
+    .auth-shell {
+        background:
+            radial-gradient(ellipse 90% 55% at 50% -12%, rgb(97 40 142 / 20%) 0%, transparent 62%),
+            linear-gradient(180deg, var(--color-ink-850) 0%, var(--color-ink-900) 58%, var(--color-ink-950) 100%);
+        isolation: isolate;
     }
 
-    to {
-        opacity: 1;
-        translate: 0 0;
-    }
-}
-
-@keyframes auth-shake {
-    0%,
-    100% {
-        transform: translateX(0);
+    .admin-directory-shell {
+        background:
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgb(124 58 237 / 16%) 0%, transparent 60%),
+            linear-gradient(180deg, var(--color-ink-850) 0%, var(--color-ink-900) 60%, var(--color-ink-950) 100%);
+        isolation: isolate;
     }
 
-    20%,
-    60% {
-        transform: translateX(-0.35rem);
+    /* ---------------------------------------------------------------------
+       Ambient orbs — the app's signature motif, tamed.
+       All three sit in the violet / indigo / plum family so the field reads as
+       one drift instead of three unrelated blooms.
+       --------------------------------------------------------------------- */
+    .ambient-orb {
+        position: absolute;
+        z-index: -1;
+        width: min(42rem, 85vw);
+        aspect-ratio: 1;
+        border-radius: 9999px;
+        filter: blur(96px);
+        opacity: 0.8;
+        pointer-events: none;
+        animation: orb-drift 26s var(--ease-craft-out) infinite alternate;
+        will-change: transform;
     }
 
-    40%,
-    80% {
-        transform: translateX(0.35rem);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .ambient-orb,
-    .auth-card,
-    .auth-card--has-errors {
-        animation: none;
+    .ambient-orb--violet {
+        top: -18rem;
+        left: -12rem;
+        background: rgb(97 40 142 / 42%);
     }
 
-    .auth-input,
-    .auth-link,
-    .auth-primary-button,
-    .app-secondary-button,
-    .app-action-button,
-    .danger-outline-button,
-    .professor-file-input,
+    .ambient-orb--indigo {
+        top: 16%;
+        right: -24rem;
+        width: min(48rem, 90vw);
+        background: rgb(76 29 149 / 32%);
+        animation-delay: -8s;
+    }
+
+    /* Formerly the cyan orb; the interface owns no cyan family. */
+    .ambient-orb--plum {
+        bottom: -27rem;
+        left: 18%;
+        width: min(36rem, 75vw);
+        background: rgb(47 37 73 / 46%);
+        animation-delay: -16s;
+    }
+
+    /* ---------------------------------------------------------------------
+       Surfaces — layered light (ambient + direct) instead of a flat border
+       --------------------------------------------------------------------- */
+    .app-glass-panel {
+        border-radius: var(--radius-panel);
+        border-color: rgb(255 255 255 / 12%);
+        background-color: rgb(26 19 43 / 78%);
+        box-shadow:
+            inset 0 1px 0 0 rgb(255 255 255 / 4%),
+            0 14px 30px -18px rgb(0 0 0 / 60%),
+            0 40px 80px -40px rgb(0 0 0 / 50%);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    /* Inner tile: code blocks, nested panels, read-out rows */
+    .app-tile {
+        border: 1px solid rgb(255 255 255 / 10%);
+        border-radius: var(--radius-control);
+        background-color: rgb(15 11 26 / 72%);
+    }
+
+    /* ---------------------------------------------------------------------
+       Buttons
+       --------------------------------------------------------------------- */
+    .app-secondary-button {
+        border: 1px solid rgb(255 255 255 / 16%);
+        border-radius: var(--radius-control);
+        background-color: transparent;
+        color: var(--color-ink-soft);
+        transition-property: background-color, border-color, color, box-shadow;
+        transition-duration: var(--duration-base);
+        transition-timing-function: var(--ease-craft-out);
+    }
+
+    .app-secondary-button:hover {
+        border-color: rgb(196 181 253 / 45%);
+        background-color: rgb(139 92 246 / 10%);
+        color: #fff;
+        box-shadow: 0 8px 20px -14px rgb(139 92 246 / 70%);
+    }
+
+    .app-secondary-button:active {
+        background-color: rgb(139 92 246 / 16%);
+    }
+
+    .app-action-button {
+        min-height: 2.5rem;
+        border-radius: var(--radius-control);
+        padding: 0.5rem 0.75rem;
+        color: var(--color-accent-300);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        transition-property: background-color, color;
+        transition-duration: var(--duration-base);
+        transition-timing-function: var(--ease-craft-out);
+    }
+
+    .app-action-button:hover {
+        background-color: rgb(139 92 246 / 14%);
+        color: #fff;
+    }
+
+    .app-action-select {
+        min-height: 2.5rem;
+        border: 1px solid rgb(255 255 255 / 16%);
+        border-radius: var(--radius-field);
+        background-color: rgb(15 11 26 / 88%);
+        padding: 0.5rem 2rem 0.5rem 0.75rem;
+        color: var(--color-ink-text);
+        font-size: 0.8125rem;
+        line-height: 1.125rem;
+    }
+
+    .app-filter-chip {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid rgb(196 181 253 / 22%);
+        border-radius: 9999px;
+        background-color: rgb(139 92 246 / 9%);
+        padding: 0.25rem 0.625rem;
+        color: var(--color-accent-200, #ddd6fe);
+        font-size: 0.75rem;
+        line-height: 1rem;
+    }
+
+    .app-action-select option {
+        background: var(--color-ink-750);
+        color: var(--color-ink-text);
+    }
+
+    .professor-file-input {
+        min-height: 3rem;
+        width: 100%;
+        overflow: hidden;
+        border: 1px solid rgb(255 255 255 / 15%);
+        border-radius: var(--radius-field);
+        background-color: rgb(15 11 26 / 75%);
+        color: var(--color-ink-muted);
+        font-size: 0.875rem;
+        transition-property: border-color, box-shadow, background-color;
+        transition-duration: var(--duration-base);
+        transition-timing-function: var(--ease-craft-out);
+    }
+
     .professor-file-input::file-selector-button {
-        transition: none;
+        min-height: 3rem;
+        margin-right: 0.875rem;
+        border: 0;
+        border-right: 1px solid rgb(255 255 255 / 12%);
+        background-color: rgb(139 92 246 / 12%);
+        padding: 0 0.875rem;
+        color: var(--color-accent-100);
+        font-weight: 600;
+        cursor: pointer;
+        transition-property: background-color;
+        transition-duration: var(--duration-base);
+        transition-timing-function: var(--ease-craft-out);
+    }
+
+    .professor-file-input::file-selector-button:hover {
+        background-color: rgb(139 92 246 / 22%);
+    }
+
+    .professor-file-input:focus-visible {
+        border-color: var(--color-accent-500);
+        outline: none;
+        box-shadow: 0 0 0 3px rgb(139 92 246 / 22%);
+    }
+
+    .app-readonly-input {
+        border-color: rgb(255 255 255 / 10%);
+        background-color: rgb(255 255 255 / 4%);
+        color: var(--color-ink-muted);
+        cursor: default;
+    }
+
+    .app-readonly-input:focus {
+        border-color: rgb(255 255 255 / 18%);
+        box-shadow: none;
     }
 }

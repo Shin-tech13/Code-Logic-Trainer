@@ -21,9 +21,6 @@ class WhitelistedStudent extends Model
         return $this->belongsTo(User::class, 'professor_id');
     }
 
-    /**
-     * Match a registered user (if any) to this whitelist entry.
-     */
     public function user()
     {
         return $this->belongsTo(User::class, 'email', 'personal_email');

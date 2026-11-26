@@ -8,8 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Self-study columns become nullable so the same table can also hold
-        // live professor-hosted sessions (type = 'live').
+        // Live sessions don't use the self-study student, language, or topic fields.
         Schema::table('quiz_sessions', function (Blueprint $table) {
             $table->foreignId('student_id')->nullable()->change();
             $table->string('language')->nullable()->change();

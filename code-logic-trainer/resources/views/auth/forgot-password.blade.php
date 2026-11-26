@@ -1,7 +1,7 @@
 <x-guest-layout>
-    <header class="mb-7 text-center">
-        <h1 class="text-2xl font-bold tracking-tight text-[#F8FAFC]">Reset your password</h1>
-        <p class="mt-2 text-sm text-[#A59EB8]">Enter your email and we’ll send you a secure reset link.</p>
+    <header class="mb-6 text-center">
+        <h1 class="text-[1.625rem] font-bold leading-tight tracking-tight text-ink-text">Reset your password</h1>
+        <p class="mt-2 text-sm leading-6 text-ink-subtle">Enter your email and we’ll send you a secure reset link.</p>
     </header>
 
     <x-auth-session-status class="auth-session-status mb-5" :status="session('status')" />

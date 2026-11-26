@@ -8,14 +8,11 @@ use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
         $accounts = config('default_accounts', []);
 
-        // Use environment variable if set, otherwise default to password123
+        // Let deployments override the default seed password.
         $defaultPassword = Hash::make(env('SEED_DEFAULT_PASSWORD', 'password123'));
 
         foreach ($accounts as $userData) {

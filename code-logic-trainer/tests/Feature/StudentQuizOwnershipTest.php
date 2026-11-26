@@ -37,7 +37,7 @@ test('a student can access their own quiz session', function () {
     $this->actingAs($student)
         ->get(route('student.play', $session))
         ->assertOk()
-        ->assertSee('00:10');
+        ->assertSee('00:20');
 });
 
 test('a student cannot access another students quiz session', function () {
@@ -296,16 +296,19 @@ test('student document generation stores its PDF and creates only its own format
             'language' => 'PHP',
             'count' => '0',
             'quiz_format' => 'fill_in_the_blank',
+            'seconds_per_question' => '105',
         ]);
 
     $response->assertOk()
         ->assertJsonPath('question_count', 1)
+        ->assertJsonPath('seconds_per_question', 100)
         ->assertJsonPath('success', true);
 
     $session = QuizSession::query()->firstOrFail();
     $upload = StoredUpload::query()->firstOrFail();
     expect($session->student_id)->toBe($student->id)
         ->and($session->source_file_id)->toBe($upload->id)
+        ->and($session->seconds_per_question)->toBe(100)
         ->and($session->quiz_format)->toBe('fill_in_the_blank')
         ->and($upload->student_id)->toBe($student->id)
         ->and($upload->professor_id)->toBeNull();

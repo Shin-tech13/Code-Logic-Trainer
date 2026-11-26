@@ -1,10 +1,10 @@
 <x-guest-layout>
-    <header class="mb-7 text-center">
-        <h1 class="text-2xl font-bold tracking-tight text-[#F8FAFC]">Create your account</h1>
-        <p class="mt-2 text-sm text-[#A59EB8]">Build your coding skills, one challenge at a time.</p>
+    <header class="mb-6 text-center">
+        <h1 class="text-[1.625rem] font-bold leading-tight tracking-tight text-ink-text">Create your account</h1>
+        <p class="mt-2 text-sm leading-6 text-ink-subtle">Build your coding skills, one challenge at a time.</p>
     </header>
 
-    <form method="POST" action="{{ route('register') }}" class="space-y-5" x-data="{ loading: false }" x-on:submit="loading = true">
+    <form method="POST" action="{{ route('register') }}" class="space-y-4" x-data="{ loading: false }" x-on:submit="loading = true">
         @csrf
 
         <div>
@@ -41,7 +41,7 @@
             <div class="relative mt-2">
                 <x-text-input id="password" class="auth-input auth-input--with-toggle block w-full" x-bind:type="visible ? 'text' : 'password'"
                     name="password" required autocomplete="new-password" placeholder="Create a password" />
-                <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex items-center px-3 text-[#A59EB8] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B5CF6]" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password">
+                <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex min-w-11 items-center justify-center rounded-r-[var(--radius-field)] px-3 text-ink-subtle transition-colors duration-quick hover:text-ink-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-400" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password">
                     <svg x-show="!visible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6-9.75-6-9.75-6Z" />
                         <circle cx="12" cy="12" r="2.75" />
@@ -60,7 +60,7 @@
             <div class="relative mt-2">
                 <x-text-input id="password_confirmation" class="auth-input auth-input--with-toggle block w-full" x-bind:type="visible ? 'text' : 'password'"
                     name="password_confirmation" required autocomplete="new-password" placeholder="Confirm your password" />
-                <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex items-center px-3 text-[#A59EB8] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B5CF6]" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password_confirmation">
+                <button type="button" class="auth-password-toggle absolute inset-y-0 right-0 inline-flex min-w-11 items-center justify-center rounded-r-[var(--radius-field)] px-3 text-ink-subtle transition-colors duration-quick hover:text-ink-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-400" x-on:click="visible = !visible" x-bind:aria-label="visible ? 'Hide password' : 'Show password'" aria-controls="password_confirmation">
                     <svg x-show="!visible" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6-9.75-6-9.75-6Z" />
                         <circle cx="12" cy="12" r="2.75" />
@@ -72,6 +72,18 @@
                 </button>
             </div>
             <x-input-error :messages="$errors->get('password_confirmation')" class="auth-input-error mt-2" />
+        </div>
+
+        <div class="rounded-[var(--radius-control)] border border-white/10 bg-ink-950/30 p-4">
+            <x-user-agreement-disclosure />
+
+            <label for="terms" class="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-[var(--radius-field)] px-1 py-2">
+                <input id="terms" type="checkbox" name="terms" value="1" required @checked(old('terms'))
+                    class="auth-checkbox mt-1 size-4 shrink-0 accent-accent-500 focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-850"
+                    @if ($errors->has('terms')) aria-invalid="true" aria-describedby="terms-error" @endif>
+                <span class="text-sm leading-6 text-ink-muted">{{ __('I have read and agree to the User Agreement & Academic Integrity Policy.') }}</span>
+            </label>
+            <x-input-error id="terms-error" :messages="$errors->get('terms')" class="auth-input-error mt-1" />
         </div>
 
         <div class="pt-2">
@@ -88,7 +100,7 @@
         </div>
     </form>
 
-    <p class="mt-7 border-t border-white/10 pt-5 text-center text-sm text-[#A59EB8]">
+    <p class="mt-6 border-t border-white/10 pt-5 text-center text-sm leading-6 text-ink-muted">
         {{ __('Already have an account?') }}
         <a class="auth-link font-semibold" href="{{ route('login') }}">{{ __('Log in') }}</a>
     </p>

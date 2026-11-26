@@ -2,16 +2,16 @@
     <div class="admin-directory-shell relative isolate min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div class="ambient-orb ambient-orb--violet" aria-hidden="true"></div>
         <div class="ambient-orb ambient-orb--indigo" aria-hidden="true"></div>
-        <div class="ambient-orb ambient-orb--cyan" aria-hidden="true"></div>
+        <div class="ambient-orb ambient-orb--plum" aria-hidden="true"></div>
 
         <div class="relative z-10 mx-auto max-w-7xl space-y-6">
             <header class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">
+                    <p class="text-xs font-semibold tracking-wide text-accent-300">
                         {{ Auth::user()->isAdmin() ? 'Administration' : 'Professor workspace' }}
                     </p>
-                    <h1 class="mt-2 text-3xl font-bold tracking-tight text-[#F8FAFC]">User directory</h1>
-                    <p class="mt-2 max-w-2xl text-sm leading-6 text-[#B8AEC9]">
+                    <h1 class="mt-2 text-3xl font-bold tracking-tight text-ink-text sm:text-4xl">User directory</h1>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-ink-subtle">
                         @if (Auth::user()->isAdmin())
                             Review account requests, manage access, and see who created each account.
                         @else
@@ -30,19 +30,19 @@
             </header>
 
             @if (session('status'))
-                <div class="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100" role="status" aria-live="polite">
+                <div class="rounded-[var(--radius-control)] border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm leading-5 text-emerald-100" role="status" aria-live="polite">
                     {{ session('status') }}
                 </div>
             @endif
 
             @if (session('error'))
-                <div class="rounded-xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert">
+                <div class="rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-100" role="alert">
                     {{ session('error') }}
                 </div>
             @endif
 
             @if ($errors->any())
-                <div class="rounded-xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert" aria-labelledby="directory-errors-title">
+                <div class="rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-100" role="alert" aria-labelledby="directory-errors-title">
                     <p id="directory-errors-title" class="font-semibold">We couldn’t update the account.</p>
                     <ul class="mt-2 list-inside list-disc space-y-1">
                         @foreach ($errors->all() as $error)
@@ -56,14 +56,14 @@
                 $hasFilters = request()->filled('role') || request()->filled('status') || request()->filled('created_by');
             @endphp
 
-            <section class="app-glass-panel rounded-2xl border p-5 sm:p-6" aria-labelledby="filters-heading">
+            <section class="app-glass-panel p-5 sm:p-6" aria-labelledby="filters-heading">
                 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h2 id="filters-heading" class="text-base font-semibold text-[#F8FAFC]">Filter accounts</h2>
-                        <p class="mt-1 text-sm text-[#A59EB8]">Narrow the directory by role, status, or account creator.</p>
+                        <h2 id="filters-heading" class="text-base font-semibold text-ink-text">Filter accounts</h2>
+                        <p class="mt-1 text-sm text-ink-subtle">Narrow the directory by role, status, or account creator.</p>
                     </div>
                     @if ($hasFilters)
-                        <span class="inline-flex items-center rounded-full border border-violet-300/25 bg-violet-400/10 px-3 py-1 text-xs font-medium text-violet-100">
+                        <span class="inline-flex items-center rounded-full border border-accent-300/25 bg-accent-400/10 px-3 py-1 text-xs font-medium text-accent-100">
                             Filters active
                         </span>
                     @endif
@@ -132,30 +132,30 @@
                 @endif
             </section>
 
-            <section class="app-glass-panel overflow-hidden rounded-2xl border" aria-label="User accounts">
+            <section class="app-glass-panel overflow-hidden" aria-label="User accounts">
                 <div class="flex flex-col gap-1 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                    <h2 class="font-semibold text-[#F8FAFC]">Accounts</h2>
-                    <p class="text-sm text-[#A59EB8]">
+                    <h2 class="font-semibold text-ink-text">Accounts</h2>
+                    <p class="text-sm text-ink-subtle">
                         @if ($users->total() > 0)
-                            Showing <span class="font-medium text-[#E9D5FF]">{{ $users->firstItem() }}–{{ $users->lastItem() }}</span>
-                            of <span class="font-medium text-[#E9D5FF]">{{ $users->total() }}</span> accounts
+                            Showing <span class="font-medium tabular-nums text-accent-200">{{ $users->firstItem() }}–{{ $users->lastItem() }}</span>
+                            of <span class="font-medium tabular-nums text-accent-200">{{ $users->total() }}</span> accounts
                         @else
                             No accounts found
                         @endif
                     </p>
                 </div>
 
-                <div class="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400" role="region" aria-label="User accounts table. Scroll horizontally to view all columns." tabindex="0">
+                <div class="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400" role="region" aria-label="User accounts table. Scroll horizontally to view all columns." tabindex="0">
                     <table class="min-w-[1050px] w-full border-collapse text-left">
                         <thead class="bg-white/[0.035]">
                             <tr>
-                                <th scope="col" class="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2] sm:px-6">Name</th>
-                                <th scope="col" class="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2]">Code Logic login</th>
-                                <th scope="col" class="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2]">Role</th>
-                                <th scope="col" class="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2]">Status</th>
-                                <th scope="col" class="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2]">Created by</th>
-                                <th scope="col" class="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2]">Created</th>
-                                <th scope="col" class="min-w-72 px-5 py-4 text-xs font-semibold uppercase tracking-wider text-[#BFB4D2]">Actions</th>
+                                <th scope="col" class="px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted sm:px-6">Name</th>
+                                <th scope="col" class="px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted">Code Logic login</th>
+                                <th scope="col" class="px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted">Role</th>
+                                <th scope="col" class="px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted">Status</th>
+                                <th scope="col" class="px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted">Created by</th>
+                                <th scope="col" class="px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted">Created</th>
+                                <th scope="col" class="min-w-72 px-5 py-4 text-xs font-semibold tracking-wide text-ink-muted">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/[0.08]">
@@ -165,30 +165,30 @@
                                         'pending' => 'border-amber-300/25 bg-amber-300/10 text-amber-100',
                                         'approved' => 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100',
                                         'suspended' => 'border-rose-300/25 bg-rose-300/10 text-rose-100',
-                                        default => 'border-white/15 bg-white/5 text-[#D8CFE8]',
+                                        default => 'border-white/15 bg-white/5 text-ink-soft',
                                     };
                                 @endphp
-                                <tr class="transition-colors duration-150 hover:bg-white/[0.035]">
+                                <tr class="transition-colors duration-quick hover:bg-white/[0.035]">
                                     <td class="whitespace-nowrap px-5 py-4 sm:px-6">
-                                        <span class="font-semibold text-[#F8FAFC]">{{ $user->name }}</span>
+                                        <span class="font-semibold text-ink-text">{{ $user->name }}</span>
                                     </td>
-                                    <td class="whitespace-nowrap px-5 py-4 font-mono text-sm text-[#D8CFE8]">{{ $user->email }}</td>
-                                    <td class="whitespace-nowrap px-5 py-4 text-sm text-[#E9D5FF]">{{ ucfirst($user->role) }}</td>
+                                    <td class="whitespace-nowrap px-5 py-4 font-mono text-sm text-ink-soft">{{ $user->email }}</td>
+                                    <td class="whitespace-nowrap px-5 py-4 text-sm text-accent-200">{{ ucfirst($user->role) }}</td>
                                     <td class="whitespace-nowrap px-5 py-4">
                                         <span class="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold {{ $statusClasses }}">
                                             <span class="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true"></span>
                                             {{ ucfirst($user->account_status) }}
                                         </span>
                                     </td>
-                                    <td class="px-5 py-4 text-sm text-[#D8CFE8]">
+                                    <td class="px-5 py-4 text-sm text-ink-soft">
                                         @if ($user->createdBy)
-                                            <span class="block font-medium text-[#F8FAFC]">{{ $user->createdBy->name }}</span>
-                                            <span class="mt-0.5 block text-xs text-[#A59EB8]">{{ $user->createdBy->email }} · {{ ucfirst($user->createdBy->role) }}</span>
+                                            <span class="block font-medium text-ink-text">{{ $user->createdBy->name }}</span>
+                                            <span class="mt-0.5 block text-xs text-ink-subtle">{{ $user->createdBy->email }} · {{ ucfirst($user->createdBy->role) }}</span>
                                         @else
-                                            <span class="text-[#A59EB8]">System / public registration</span>
+                                            <span class="text-ink-subtle">System / public registration</span>
                                         @endif
                                     </td>
-                                    <td class="whitespace-nowrap px-5 py-4 text-sm text-[#B8AEC9]">{{ $user->created_at->format('M j, Y') }}</td>
+                                    <td class="whitespace-nowrap px-5 py-4 text-sm tabular-nums text-ink-subtle">{{ $user->created_at->format('M j, Y') }}</td>
                                     <td class="px-5 py-4">
                                         <div class="flex min-w-64 flex-col items-start gap-3">
                                             @if ($user->account_status === 'pending' && ($user->isStudent() || Auth::user()->isAdmin()))
@@ -232,8 +232,8 @@
                             @empty
                                 <tr>
                                     <td colspan="7" class="px-6 py-14 text-center">
-                                        <p class="font-semibold text-[#F8FAFC]">No accounts match these filters.</p>
-                                        <p class="mt-1 text-sm text-[#A59EB8]">Try changing or resetting your filters.</p>
+                                        <p class="font-semibold text-ink-text">No accounts match these filters.</p>
+                                        <p class="mt-1 text-sm text-ink-subtle">Try changing or resetting your filters.</p>
                                     </td>
                                 </tr>
                             @endforelse

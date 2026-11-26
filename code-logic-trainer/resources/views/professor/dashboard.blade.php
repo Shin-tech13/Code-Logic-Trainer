@@ -2,24 +2,24 @@
     <div class="auth-shell relative isolate min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div class="ambient-orb ambient-orb--violet" aria-hidden="true"></div>
         <div class="ambient-orb ambient-orb--indigo" aria-hidden="true"></div>
-        <div class="ambient-orb ambient-orb--cyan" aria-hidden="true"></div>
+        <div class="ambient-orb ambient-orb--plum" aria-hidden="true"></div>
 
         <main class="relative z-10 mx-auto max-w-5xl space-y-7">
             <header>
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Professor workspace</p>
-                <h1 class="mt-2 text-3xl font-bold tracking-tight text-[#F8FAFC]">Quiz dashboard</h1>
-                <p class="mt-2 max-w-2xl text-sm leading-6 text-[#B8AEC9]">
+                <p class="text-xs font-semibold tracking-wide text-accent-300">Professor workspace</p>
+                <h1 class="mt-2 text-3xl font-bold tracking-tight text-ink-text sm:text-4xl">Quiz dashboard</h1>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-ink-subtle">
                     Turn course material into a quiz and manage your existing quizzes from one place.
                 </p>
             </header>
 
             @if (session('status'))
-                <div class="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100" role="status" aria-live="polite">
+                <div class="rounded-[var(--radius-control)] border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm leading-5 text-emerald-100" role="status" aria-live="polite">
                     {{ session('status') }}
                 </div>
             @endif
 
-            <section class="app-glass-panel rounded-2xl border p-5 sm:p-7 lg:p-8" aria-labelledby="create-quiz-heading"
+            <section class="app-glass-panel p-5 sm:p-7 lg:p-8" aria-labelledby="create-quiz-heading"
                 x-data="{
                     title: '',
                     description: '',
@@ -82,6 +82,7 @@
                             formData.append('title', this.title.trim());
                             formData.append('description', this.description.trim());
                             formData.append('count', this.count || 0);
+                            formData.append('seconds_per_question', window.normalizeQuestionTimer(this.$refs.secondsPerQuestion.value, true));
                             formData.append('quiz_format', this.quizFormat);
                             formData.append('idempotency_key', @js($generationRequestId));
                             formData.append('_token', '{{ csrf_token() }}');
@@ -112,14 +113,14 @@
                     }
                 }">
                 <div class="mb-6 flex items-start gap-4">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet-300/20 bg-violet-400/10 text-violet-200" aria-hidden="true">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-control)] border border-accent-300/20 bg-accent-400/10 text-accent-200" aria-hidden="true">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7 9m5-5 5 5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
                         </svg>
                     </span>
                     <div>
-                        <h2 id="create-quiz-heading" class="text-xl font-bold text-[#F8FAFC]">Create Quiz from PDF</h2>
-                        <p class="mt-1 text-sm leading-6 text-[#A59EB8]">Upload course material to create multiple-choice or fill-in-the-blank questions grounded in the document.</p>
+                        <h2 id="create-quiz-heading" class="text-xl font-bold tracking-tight text-ink-text">Create quiz from PDF</h2>
+                        <p class="mt-1 text-sm leading-6 text-ink-subtle">Upload course material to create multiple-choice or fill-in-the-blank questions grounded in the document.</p>
                     </div>
                 </div>
 
@@ -130,14 +131,22 @@
                     </div>
 
                     <div class="sm:col-span-2">
-                        <label for="quiz-description" class="auth-label">Description <span class="font-normal text-[#A59EB8]">(optional)</span></label>
+                        <label for="quiz-description" class="auth-label">Description <span class="font-normal text-ink-subtle">(optional)</span></label>
                         <input id="quiz-description" type="text" x-model="description" maxlength="1000" class="auth-input mt-2" placeholder="Add a short note about this quiz">
                     </div>
 
                     <div>
-                        <label for="quiz-count" class="auth-label">Number of questions <span class="font-normal text-[#A59EB8]">(optional)</span></label>
+                        <label for="quiz-count" class="auth-label">Number of questions <span class="font-normal text-ink-subtle">(optional)</span></label>
                         <input id="quiz-count" type="number" x-model="count" min="0" max="40" class="auth-input mt-2" placeholder="Automatic">
-                        <p class="mt-2 text-xs text-[#A59EB8]">Leave blank or enter 0 for automatic count. Positive values are capped at 150.</p>
+                        <p class="mt-2 text-xs leading-5 text-ink-subtle">Leave blank or enter 0 for automatic count. Positive values are capped at 150.</p>
+                    </div>
+
+                    <div>
+                        <label for="quiz-seconds-per-question" class="auth-label">Seconds per question</label>
+                        <input id="quiz-seconds-per-question" x-ref="secondsPerQuestion" name="seconds_per_question" type="number" min="0" max="100" step="1" value="20" placeholder="20 (default)" class="auth-input mt-2"
+                            @input="$event.target.value = window.normalizeQuestionTimer($event.target.value)"
+                            @blur="$event.target.value = window.normalizeQuestionTimer($event.target.value, true)">
+                        <p class="mt-2 text-xs leading-5 text-ink-subtle">1–100s (leave blank or 0 for default 20s; values above 100 cap at 100s)</p>
                     </div>
 
                     <div>
@@ -146,17 +155,17 @@
                             <option value="multiple_choice">Multiple choice</option>
                             <option value="fill_in_the_blank">Fill in the blank</option>
                         </select>
-                        <p class="mt-2 text-xs text-[#A59EB8]" x-text="quizFormat === 'multiple_choice' ? 'Four answer choices per question.' : 'Students enter a short answer; equivalent answers may be accepted.'"></p>
+                        <p class="mt-2 text-xs leading-5 text-ink-subtle" x-text="quizFormat === 'multiple_choice' ? 'Four answer choices per question.' : 'Students enter a short answer; equivalent answers may be accepted.'"></p>
                     </div>
 
                     <div>
                         <label for="quiz-pdf" class="auth-label">PDF file</label>
                         <input id="quiz-pdf" type="file" x-ref="pdf" accept="application/pdf" required @change="selectPdf($event)"
                             class="professor-file-input mt-2 block w-full" aria-describedby="pdf-guidance">
-                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-[#A59EB8]">PDF only · maximum 20 MB. Text extraction is local when possible; if the parser cannot read the PDF, Gemini may receive it for extraction. Extracted text is normally sent to Gemini and may also be sent to Groq if Gemini is temporarily unavailable. Review each provider's current data-handling terms before uploading sensitive material.</p>
-                        <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-violet-100" aria-live="polite">
+                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-ink-subtle">PDF only · maximum 20 MB. Text extraction is local when possible; if the parser cannot read the PDF, Gemini may receive it for extraction. Extracted text is normally sent to Gemini and may also be sent to Groq if Gemini is temporarily unavailable. Review each provider's current data-handling terms before uploading sensitive material.</p>
+                        <p x-show="fileName" x-cloak class="mt-2 break-all text-xs text-accent-200" aria-live="polite">
                             <span class="font-semibold">Selected:</span> <span x-text="fileName"></span>
-                            <span class="text-[#A59EB8]" x-text="fileSize ? ` · ${fileSize}` : ''"></span>
+                            <span class="text-ink-subtle" x-text="fileSize ? ` · ${fileSize}` : ''"></span>
                         </p>
                     </div>
 
@@ -169,32 +178,32 @@
                         </button>
                     </div>
 
-                    <p x-show="errorMessage" x-text="errorMessage" x-cloak class="sm:col-span-2 rounded-lg border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100" role="alert"></p>
+                    <p x-show="errorMessage" x-text="errorMessage" x-cloak class="rounded-[var(--radius-control)] border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-100 sm:col-span-2" role="alert"></p>
                 </form>
 
                 <div x-show="isGenerating" x-cloak class="mx-auto max-w-xl space-y-5 py-5 text-center" role="status" aria-live="polite">
-                    <p class="text-lg font-semibold text-[#E9D5FF]" x-text="statusMessage"></p>
+                    <p class="text-lg font-semibold text-accent-200" x-text="statusMessage"></p>
                     <div class="h-3 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz generation progress" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progress)">
-                        <div class="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-700 ease-out" :style="'width: ' + Math.round(progress) + '%'"></div>
+                        <div class="h-full rounded-full bg-gradient-to-r from-accent-600 to-accent-400 transition-[width] duration-700 ease-out" :style="'width: ' + Math.round(progress) + '%'"></div>
                     </div>
-                    <p class="font-mono text-xs text-[#A59EB8]" x-text="Math.round(progress) + '% completed'"></p>
+                    <p class="font-mono text-xs tabular-nums text-ink-subtle" x-text="Math.round(progress) + '% completed'"></p>
                 </div>
             </section>
 
-            <section class="app-glass-panel overflow-hidden rounded-2xl border" aria-labelledby="your-quizzes-heading">
+            <section class="app-glass-panel overflow-hidden" aria-labelledby="your-quizzes-heading">
                 <header class="flex flex-col gap-1 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <div>
-                        <h2 id="your-quizzes-heading" class="text-lg font-semibold text-[#F8FAFC]">Your Quizzes</h2>
-                        <p class="mt-1 text-sm text-[#A59EB8]">Quizzes created from your course materials.</p>
+                        <h2 id="your-quizzes-heading" class="text-lg font-semibold tracking-tight text-ink-text">Your quizzes</h2>
+                        <p class="mt-1 text-sm text-ink-subtle">Quizzes created from your course materials.</p>
                     </div>
-                    <span class="text-sm text-[#B8AEC9]">{{ $quizzes->count() }} {{ $quizzes->count() === 1 ? 'quiz' : 'quizzes' }}</span>
+                    <span class="text-sm text-ink-muted">{{ $quizzes->count() }} {{ $quizzes->count() === 1 ? 'quiz' : 'quizzes' }}</span>
                 </header>
 
                 @if ($quizzes->isEmpty())
                     <div class="px-6 py-10 text-center">
-                        <h3 class="font-semibold text-[#F8FAFC]">No quizzes yet</h3>
-                        <p class="mt-2 text-sm text-[#A59EB8]">Start by uploading a PDF in the quiz creation form above.</p>
-                        <a href="#create-quiz-heading" class="auth-link mt-4 inline-flex rounded-md text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400">
+                        <h3 class="font-semibold text-ink-text">No quizzes yet</h3>
+                        <p class="mt-2 text-sm text-ink-subtle">Start by uploading a PDF in the quiz creation form above.</p>
+                        <a href="#create-quiz-heading" class="auth-link mt-4 inline-flex min-h-11 items-center rounded-[var(--radius-field)] text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                             Go to PDF upload
                         </a>
                     </div>
@@ -203,11 +212,13 @@
                         @foreach ($quizzes as $quiz)
                             <li class="flex flex-col gap-4 px-5 py-5 transition-colors hover:bg-white/[0.025] sm:flex-row sm:items-center sm:justify-between sm:px-6">
                                 <div class="min-w-0">
-                                    <a href="{{ route('professor.quizzes.show', $quiz->id) }}" class="rounded-sm text-base font-semibold text-[#E9D5FF] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400">
+                                    <a href="{{ route('professor.quizzes.show', $quiz->id) }}" class="rounded-sm text-base font-semibold text-accent-200 transition-colors duration-quick hover:text-ink-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                                         {{ $quiz->title }}
                                     </a>
-                                    <p class="mt-1 text-sm text-[#A59EB8]">
+                                    <p class="mt-1 text-sm text-ink-subtle">
                                         {{ $quiz->questions_count }} {{ $quiz->questions_count === 1 ? 'question' : 'questions' }}
+                                        <span aria-hidden="true">·</span>
+                                        {{ $quiz->seconds_per_question }}s per question
                                         <span aria-hidden="true">·</span>
                                         Created {{ $quiz->created_at->diffForHumans() }}
                                     </p>
@@ -222,7 +233,7 @@
                                     <form method="POST" action="{{ route('professor.quizzes.destroy', $quiz->id) }}" onsubmit="return confirm('Delete this quiz?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="app-action-button min-h-10 rounded-lg border border-rose-300/20 px-4 text-sm text-rose-200 hover:bg-rose-300/10 hover:text-white">
+                                        <button type="submit" class="app-action-button min-h-11 rounded-[var(--radius-control)] border border-rose-300/20 px-4 text-sm text-rose-200 hover:bg-rose-300/10 hover:text-white">
                                             Delete
                                         </button>
                                     </form>

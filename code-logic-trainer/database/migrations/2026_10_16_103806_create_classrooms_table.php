@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('professor_id')->constrained('users')->onDelete('cascade');
             $table->string('title');
-            $table->string('class_code')->unique(); // e.g., PY-9482
+            $table->string('class_code')->unique(); // Example: PY-9482
             $table->text('description')->nullable();
             $table->timestamps();
         });

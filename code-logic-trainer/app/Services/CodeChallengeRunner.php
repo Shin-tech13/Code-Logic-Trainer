@@ -9,8 +9,6 @@ use RuntimeException;
 class CodeChallengeRunner
 {
     /**
-     * Execute untrusted code in the separately hosted, isolated runner.
-     *
      * @param array<int, array{label: string, arguments: array<int, mixed>, expected: mixed}> $testCases
      * @return array{passed: bool, results: array<int, array{label: string, passed: bool}>, output: string}
      */

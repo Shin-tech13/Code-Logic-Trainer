@@ -9,6 +9,7 @@ use App\Models\Quiz;
 use App\Models\UploadedFile;
 use App\Services\DocumentQuizGenerationService;
 use App\Services\GeminiQuizService;
+use App\Support\QuestionTimer;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,9 +36,6 @@ class ProfessorQuizController extends Controller
         $this->documentQuizGenerator = $documentQuizGenerator;
     }
 
-    /**
-     * Professor dashboard: lists their quizzes.
-     */
     public function index()
     {
         $quizzes = Quiz::where('professor_id', Auth::id())
@@ -49,10 +47,7 @@ class ProfessorQuizController extends Controller
         return view('professor.dashboard', compact('quizzes', 'generationRequestId'));
     }
 
-    /**
-     * Upload a PDF and generate a quiz from its extracted text.
-     * Returns JSON for the Alpine/fetch handler.
-     */
+    // The dashboard submits this upload with fetch and expects JSON.
     public function uploadAndGenerate(Request $request)
     {
         set_time_limit(300);
@@ -60,12 +55,17 @@ class ProfessorQuizController extends Controller
         $requestId = (string) Str::uuid();
 
         try {
+            $request->merge([
+                'seconds_per_question' => QuestionTimer::normalize($request->input('seconds_per_question')),
+            ]);
+
             $validated = $request->validate([
                 'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
                 'title' => ['required', 'string', 'max:255'],
                 'count' => ['nullable', 'integer', 'min:0', 'max:150'],
                 'description' => ['nullable', 'string', 'max:1000'],
                 'quiz_format' => ['required', 'in:multiple_choice,fill_in_the_blank'],
+                'seconds_per_question' => ['required', 'integer', 'between:1,100'],
                 'idempotency_key' => ['required', 'uuid'],
             ]);
 
@@ -140,6 +140,7 @@ class ProfessorQuizController extends Controller
                             'description' => $validated['description'] ?? null,
                             'source_file_id' => $uploaded->id,
                             'question_count' => count($questions),
+                            'seconds_per_question' => $validated['seconds_per_question'],
                             'status' => 'ready',
                             'quiz_format' => $validated['quiz_format'],
                         ]);
@@ -158,6 +159,7 @@ class ProfessorQuizController extends Controller
                         'quiz_id' => $quiz->id,
                         'question_count' => $quiz->question_count,
                         'quiz_format' => $quiz->quiz_format,
+                        'seconds_per_question' => $quiz->seconds_per_question,
                         'redirect_url' => route('professor.quizzes.show', $quiz->id),
                     ];
 
@@ -235,9 +237,6 @@ class ProfessorQuizController extends Controller
         }
     }
 
-    /**
-     * Show a single quiz and its questions.
-     */
     public function show(Quiz $quiz)
     {
         if ($quiz->professor_id !== Auth::id()) {
@@ -249,9 +248,25 @@ class ProfessorQuizController extends Controller
         return view('professor.quiz-show', compact('quiz'));
     }
 
-    /**
-     * Delete a quiz.
-     */
+    public function updateSettings(Request $request, Quiz $quiz)
+    {
+        abort_unless($quiz->professor_id === Auth::id(), 403);
+
+        $request->merge([
+            'seconds_per_question' => QuestionTimer::normalize($request->input('seconds_per_question')),
+        ]);
+
+        $validated = $request->validate([
+            'seconds_per_question' => ['required', 'integer', 'between:1,100'],
+        ]);
+
+        $quiz->update([
+            'seconds_per_question' => $validated['seconds_per_question'],
+        ]);
+
+        return back()->with('status', 'Question timer settings saved.');
+    }
+
     public function destroy(Quiz $quiz)
     {
         if ($quiz->professor_id !== Auth::id()) {

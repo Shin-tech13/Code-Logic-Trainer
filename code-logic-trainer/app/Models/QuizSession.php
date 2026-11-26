@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\QuestionTimer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,7 +17,8 @@ class QuizSession extends Model
         'language',
         'topic',
         'score',
-        'status', // active, completed, waiting, in_progress
+        'seconds_per_question',
+        'status', // active, waiting, in progress, completed
         'quiz_code',
         'type', // self_study or live
         'quiz_format',
@@ -30,19 +32,26 @@ class QuizSession extends Model
         'answers' => 'array',
     ];
 
-    // The student taking the quiz (self-study)
+    public function getSecondsPerQuestionAttribute($value): int
+    {
+        return QuestionTimer::normalize($value);
+    }
+
+    public function setSecondsPerQuestionAttribute($value): void
+    {
+        $this->attributes['seconds_per_question'] = QuestionTimer::normalize($value);
+    }
+
     public function student()
     {
         return $this->belongsTo(User::class, 'student_id');
     }
 
-    // The professor hosting a live session
     public function professor()
     {
         return $this->belongsTo(User::class, 'professor_id');
     }
 
-    // The professor-created quiz backing a live session
     public function quiz()
     {
         return $this->belongsTo(Quiz::class);
@@ -53,21 +62,16 @@ class QuizSession extends Model
         return $this->belongsTo(UploadedFile::class, 'source_file_id');
     }
 
-    // The questions generated for this specific session
     public function questions()
     {
         return $this->hasMany(Question::class);
     }
 
-    // Participants joined to a live session
     public function participants()
     {
         return $this->hasMany(SessionParticipant::class);
     }
 
-    /**
-     * Scope helper: only live professor-hosted sessions.
-     */
     public function scopeLive($query)
     {
         return $query->where('type', 'live');

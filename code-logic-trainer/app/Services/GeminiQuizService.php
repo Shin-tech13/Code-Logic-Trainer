@@ -11,13 +11,7 @@ use RuntimeException;
 use Smalot\PdfParser\Parser;
 
 /**
- * Handles all Gemini API interactions for the professor workflow:
- *  1. PDF text extraction (via Gemini's file/content understanding).
- *  2. Structured multiple-choice or fill-in-the-blank quiz JSON generation.
- *
- * If a local PDF text extractor is available it is used first, so text
- * extraction still works without a Gemini key; Gemini remains the primary
- * provider for quiz generation.
+ * Extracts PDF text locally when possible and uses Gemini for quiz generation.
  */
 class GeminiQuizService
 {
@@ -39,12 +33,9 @@ class GeminiQuizService
         );
     }
 
-    /**
-     * Extract raw text from a PDF file path.
-     */
     public function extractPdfText(string $filePath): string
     {
-        // Prefer a native extractor so a Gemini key is not strictly required.
+        // Local extraction keeps this path usable without a Gemini key.
         if (class_exists(Parser::class)) {
             try {
                 $parser = new Parser;
@@ -55,17 +46,14 @@ class GeminiQuizService
                     return $this->cleanExtractedText($text);
                 }
             } catch (\Throwable) {
-                // Continue with the provider fallback without logging the document path or parser output.
+                // Fall back without logging the source path or extracted text.
             }
         }
 
-        // Fallback: send the PDF to Gemini for text extraction.
+        // Let Gemini handle PDFs the local parser cannot read.
         return $this->extractPdfTextViaGemini($filePath);
     }
 
-    /**
-     * Extract text by sending the PDF bytes to Gemini.
-     */
     protected function extractPdfTextViaGemini(string $filePath): string
     {
         $this->ensureApiKey();
@@ -106,11 +94,7 @@ class GeminiQuizService
         return $this->cleanExtractedText($text);
     }
 
-    /**
-     * Generate validated questions from extracted source text.
-     *
-     * @return array<int, array{question_text: string, options: array<int,string>, question_type: string, correct_answer: string, accepted_answers: array<int,string>, explanation: string, needs_review: bool}>
-     */
+    /** @return array<int, array{question_text: string, options: array<int,string>, question_type: string, correct_answer: string, accepted_answers: array<int,string>, explanation: string, needs_review: bool}> */
     public function generateQuizFromText(
         string $sourceText,
         string $title,
@@ -147,9 +131,6 @@ class GeminiQuizService
         return $this->questionNormalizer->normalize($raw, $format, $questionLimit, 'gemini');
     }
 
-    /**
-     * Perform a Gemini generateContent request and return the text part.
-     */
     protected function request(string $action, array $payload): string
     {
         $url = "{$this->apiUrl}/{$this->model}:{$action}";
@@ -212,9 +193,7 @@ class GeminiQuizService
         throw new GeminiProviderException(null, null);
     }
 
-    /**
-     * @return int|null Delay in milliseconds, or null when Retry-After is outside the retry budget.
-     */
+    /** @return int|null Milliseconds to wait, or null when Retry-After exceeds the retry budget. */
     protected function retryDelayMilliseconds(int $attempt, ?int $retryAfterSeconds): ?int
     {
         if ($retryAfterSeconds !== null) {
@@ -247,7 +226,6 @@ class GeminiQuizService
 
     protected function cleanExtractedText(string $text): string
     {
-        // Normalize whitespace and strip excessive blank lines.
         $text = str_replace(["\r\n", "\r"], "\n", $text);
         $text = preg_replace('/[ \t]+/', ' ', $text);
         $text = preg_replace("/\n{3,}/", "\n\n", $text);

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('professor_id')->constrained('users')->onDelete('cascade');
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('status')->default('active'); // active, revoked
+            $table->string('status')->default('active'); // active or revoked
             $table->timestamps();
         });
     }

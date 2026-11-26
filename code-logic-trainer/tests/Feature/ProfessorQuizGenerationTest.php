@@ -135,6 +135,7 @@ test('resubmitting the same idempotency key returns the existing quiz without ge
         'title' => 'Idempotent quiz',
         'quiz_format' => 'multiple_choice',
         'idempotency_key' => (string) Str::uuid(),
+        'seconds_per_question' => '105',
     ];
     $questions = [[
         'question_text' => 'Which value is true?',
@@ -158,7 +159,9 @@ test('resubmitting the same idempotency key returns the existing quiz without ge
     $first = $this->actingAs($professor)
         ->withHeader('Accept', 'application/json')
         ->post(route('professor.quizzes.generate'), $requestData);
-    $first->assertOk()->assertJsonPath('success', true);
+    $first->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('seconds_per_question', 100);
 
     $second = $this->actingAs($professor)
         ->withHeader('Accept', 'application/json')
@@ -167,6 +170,7 @@ test('resubmitting the same idempotency key returns the existing quiz without ge
         ->assertExactJson($first->json());
 
     expect(Quiz::query()->where('professor_id', $professor->id)->count())->toBe(1)
+        ->and(Quiz::query()->where('professor_id', $professor->id)->firstOrFail()->seconds_per_question)->toBe(100)
         ->and(StoredUpload::query()->where('professor_id', $professor->id)->count())->toBe(1);
 });
 

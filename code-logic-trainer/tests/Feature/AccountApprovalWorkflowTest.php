@@ -20,6 +20,7 @@ test('public registration creates a pending student with a generated login and p
         'student_id' => '2026-001',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
+        'terms' => '1',
         'role' => 'admin',
         'account_status' => 'approved',
         'is_whitelisted' => true,
@@ -50,6 +51,7 @@ test('generated login address is made unique when a name already has an address'
         'student_id' => '2026-002',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
+        'terms' => '1',
     ])->assertRedirect(route('register.confirmation'))
         ->assertSessionHas('registration_login_address', 'janedoe2@codelogic.com');
 
@@ -63,6 +65,7 @@ test('public student registration requires a year level and unique student id', 
             'personal_email' => 'jane.fields@example.test',
             'password' => 'StrongPassword123!',
             'password_confirmation' => 'StrongPassword123!',
+            'terms' => '1',
         ])
         ->assertRedirect(route('register'))
         ->assertSessionHasErrors(['year_level', 'student_id']);
@@ -74,6 +77,7 @@ test('public student registration requires a year level and unique student id', 
         'student_id' => 'UNIQUE-001',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
+        'terms' => '1',
     ])->assertRedirect(route('register.confirmation'));
 
     $this->from(route('register'))
@@ -84,6 +88,7 @@ test('public student registration requires a year level and unique student id', 
             'student_id' => 'UNIQUE-001',
             'password' => 'StrongPassword123!',
             'password_confirmation' => 'StrongPassword123!',
+            'terms' => '1',
         ])
         ->assertRedirect(route('register'))
         ->assertSessionHasErrors('student_id');
@@ -99,6 +104,7 @@ test('successful registration displays a one-time confirmation instead of the lo
         'student_id' => '2026-003',
         'password' => 'StrongPassword123!',
         'password_confirmation' => 'StrongPassword123!',
+        'terms' => '1',
     ])->assertOk()
         ->assertSee('Account request received')
         ->assertSee('pending approval')
@@ -128,6 +134,7 @@ test('pending and suspended accounts cannot log in or access protected routes', 
     $this->post(route('login'), [
         'email' => $pending->email,
         'password' => 'StrongPassword123!',
+        'terms' => '1',
     ])->assertSessionHasErrors('email');
 
     $this->actingAs($pending)

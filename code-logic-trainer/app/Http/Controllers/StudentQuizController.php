@@ -10,6 +10,7 @@ use App\Models\SessionParticipant;
 use App\Models\UploadedFile as StoredUpload;
 use App\Services\GeminiQuizService;
 use App\Services\QuizGeneratorService;
+use App\Support\QuestionTimer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -35,13 +36,9 @@ class StudentQuizController extends Controller
         $this->documentQuizService = $documentQuizService;
     }
 
-    /**
-     * Show the filter selection dashboard.
-     * Also loads the student's latest quiz session (if any).
-     */
+    // Resume the student's latest quiz when one exists.
     public function index()
     {
-        // FIXED: Changed user_id to student_id
         $session = QuizSession::where('student_id', Auth::id())
             ->latest()
             ->first();
@@ -180,9 +177,7 @@ class StudentQuizController extends Controller
         ];
     }
 
-    /**
-     * Generate a self-study quiz from a privately stored student PDF.
-     */
+    // Keep generated source PDFs associated with the student who uploaded them.
     public function generateFromDocument(Request $request)
     {
         set_time_limit(300);
@@ -192,12 +187,17 @@ class StudentQuizController extends Controller
         $extractedText = null;
 
         try {
+            $request->merge([
+                'seconds_per_question' => QuestionTimer::normalize($request->input('seconds_per_question')),
+            ]);
+
             $validated = $request->validate([
                 'pdf' => ['required', 'file', 'mimes:pdf', 'max:20480'],
                 'title' => ['required', 'string', 'max:255'],
                 'language' => ['required', 'string', 'in:PHP,JavaScript,Python,Java'],
                 'count' => ['nullable', 'integer', 'min:0', 'max:150'],
                 'quiz_format' => ['required', 'in:multiple_choice,fill_in_the_blank'],
+                'seconds_per_question' => ['required', 'integer', 'between:1,100'],
             ]);
 
             $failureStage = 'file_storage';
@@ -243,6 +243,7 @@ class StudentQuizController extends Controller
                     'student_id' => Auth::id(),
                     'language' => $validated['language'],
                     'topic' => $validated['title'],
+                    'seconds_per_question' => $validated['seconds_per_question'],
                     'source_file_id' => $upload->id,
                     'quiz_format' => $validated['quiz_format'],
                 ]);
@@ -267,6 +268,7 @@ class StudentQuizController extends Controller
             return response()->json([
                 'success' => true,
                 'question_count' => count($questionsData),
+                'seconds_per_question' => $session->seconds_per_question,
                 'redirect_url' => route('student.play', $session),
                 'session_id' => $session->id,
             ]);
@@ -318,30 +320,30 @@ class StudentQuizController extends Controller
         }
     }
 
-    /**
-     * Process choices, call the AI, persist the session & questions.
-     * Always returns JSON so the Alpine fetch() handler can read it.
-     */
+    // The student dashboard calls this endpoint with fetch and expects JSON.
     public function generate(Request $request)
     {
-        // Allow PHP to run for up to 3 minutes so the AI has time to generate 10 questions
+        // AI generation can take up to three minutes.
         set_time_limit(180);
         $requestId = (string) Str::uuid();
 
         try {
+            $request->merge([
+                'seconds_per_question' => QuestionTimer::normalize($request->input('seconds_per_question')),
+            ]);
+
             $validated = $request->validate([
                 'language' => ['required', 'string', 'in:PHP,JavaScript,Python,Java'],
                 'topic' => ['required', 'string', 'max:255'],
+                'seconds_per_question' => ['required', 'integer', 'between:1,100'],
             ]);
 
-            // Call Gemini AI via your service
             $questionsData = $this->aiService->generateStudentQuiz(
                 $validated['language'],
                 $validated['topic'],
                 10
             );
 
-            // Guard against empty / malformed AI responses
             if (empty($questionsData) || ! is_array($questionsData)) {
                 return response()->json([
                     'success' => false,
@@ -349,18 +351,19 @@ class StudentQuizController extends Controller
                 ], 422);
             }
 
-            // Persist session + questions atomically so a partial failure
-            // never leaves an orphaned session behind
+            // Keep the session and its questions together if persistence fails.
             $session = DB::transaction(function () use ($validated, $questionsData) {
                 $session = QuizSession::create([
-                    'student_id' => Auth::id(), // FIXED: Changed user_id to student_id
+                    'student_id' => Auth::id(),
                     'language' => $validated['language'],
                     'topic' => $validated['topic'],
+                    'seconds_per_question' => $validated['seconds_per_question'],
                 ]);
 
                 foreach ($questionsData as $q) {
                     if (! is_array($q)) {
-                        continue; // skip malformed entries instead of crashing
+                        // Ignore malformed provider entries.
+                        continue;
                     }
 
                     $session->questions()->create([
@@ -378,8 +381,9 @@ class StudentQuizController extends Controller
 
             return response()->json([
                 'success' => true,
-                'redirect_url' => route('student.play', $session->id), // Redirects to the game
+                'redirect_url' => route('student.play', $session->id),
                 'session_id' => $session->id,
+                'seconds_per_question' => $session->seconds_per_question,
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -400,21 +404,17 @@ class StudentQuizController extends Controller
         }
     }
 
-    /**
-     * Play the quiz game interface.
-     */
     public function play(QuizSession $session)
     {
         abort_unless($session->student_id === Auth::id(), 403);
 
         $session->load('questions');
+        $secondsPerQuestion = QuestionTimer::normalize($session->seconds_per_question);
 
-        return view('student.play', compact('session'));
+        return view('student.play', compact('session', 'secondsPerQuestion'));
     }
 
-    /**
-     * Show the answer review after a student has submitted their quiz.
-     */
+    // Keep answer review locked until submission is complete.
     public function results(QuizSession $session)
     {
         abort_unless($session->student_id === Auth::id(), 403);
@@ -425,9 +425,7 @@ class StudentQuizController extends Controller
         return view('student.results', compact('session'));
     }
 
-    /**
-     * Check one answer for the student-created quiz without exposing answers in the page.
-     */
+    // Check answers server-side; keep the answer key out of the quiz page.
     public function answer(Request $request, QuizSession $session)
     {
         abort_unless($session->student_id === Auth::id(), 403);
@@ -451,7 +449,7 @@ class StudentQuizController extends Controller
         if ($timedOut) {
             abort_if($answer !== null && $normalizedAnswer !== '', 422, 'Timed-out answers cannot include a selected option.');
         } elseif ($question->question_type === 'fill_in_the_blank') {
-            // Free-text answers are checked against the stored accepted answers below.
+            // The model checks free-text variants against accepted answers.
         } elseif (! in_array($normalizedAnswer, $normalizedOptions, true)) {
             abort(422, 'A submitted answer is not one of the available options.');
         }
@@ -471,9 +469,6 @@ class StudentQuizController extends Controller
         return response()->json($response);
     }
 
-    /**
-     * Submit a quiz score.
-     */
     public function submit(Request $request, QuizSession $session)
     {
         abort_unless($session->student_id === Auth::id(), 403);

@@ -1,42 +1,42 @@
 <x-app-layout>
     <div class="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
-        <a href="{{ route('student.challenges.index') }}" class="text-sm font-medium text-indigo-700 hover:underline">
+        <a href="{{ route('student.challenges.index') }}" class="app-action-button inline-flex items-center gap-2 rounded-[var(--radius-control)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-300">
             &larr; All challenges
         </a>
 
-        <header class="rounded-lg bg-white p-6 shadow-sm">
+        <header class="app-glass-panel p-5 sm:p-6">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900">{{ $challenge->title }}</h1>
-                    <p class="mt-2 max-w-3xl text-gray-600">{{ $challenge->description }}</p>
+                    <h1 class="text-2xl font-bold tracking-tight text-ink-text">{{ $challenge->title }}</h1>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-ink-subtle sm:text-base">{{ $challenge->description }}</p>
                 </div>
-                <span class="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
+                <span class="app-filter-chip">
                     {{ ucfirst($challenge->difficulty) }} · PHP
                 </span>
             </div>
         </header>
 
         <section x-data="challengeRunner()" class="grid gap-5 lg:grid-cols-2">
-            <div class="overflow-hidden rounded-lg bg-slate-950 shadow">
-                <div class="flex items-center justify-between border-b border-slate-700 px-4 py-3">
-                    <h2 class="font-semibold text-white">Your PHP solution</h2>
-                    <span class="text-xs text-slate-400">PHP 8.3</span>
+            <div class="app-tile overflow-hidden">
+                <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                    <h2 class="font-semibold text-ink-text">Your PHP solution</h2>
+                    <span class="text-xs text-ink-subtle">PHP 8.3</span>
                 </div>
                 <label class="sr-only" for="challenge-code">PHP solution code</label>
                 <textarea id="challenge-code" x-model="code" spellcheck="false" autocomplete="off"
-                    class="min-h-[28rem] w-full resize-y border-0 bg-slate-950 p-4 font-mono text-sm leading-6 text-green-200 outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-400"
+                    class="min-h-[28rem] w-full resize-y border-0 bg-ink-950/80 p-4 font-mono text-sm leading-6 text-emerald-200 outline-none focus:ring-2 focus:ring-inset focus:ring-accent-400"
                     aria-describedby="editor-help"></textarea>
-                <p id="editor-help" class="px-4 pb-4 text-xs text-slate-400">
+                <p id="editor-help" class="px-4 pb-4 text-xs leading-5 text-ink-subtle">
                     Complete the function shown above. Runs are isolated, time-limited, and have no network access.
                 </p>
             </div>
 
             <div class="space-y-5">
-                <div class="rounded-lg bg-white p-5 shadow-sm">
+                <div class="app-glass-panel p-5">
                     <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold text-gray-900">Automated tests</h2>
+                        <h2 class="text-lg font-bold tracking-tight text-ink-text">Automated tests</h2>
                         <button type="button" @click="runTests()" :disabled="running"
-                            class="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60">
+                            class="auth-primary-button min-h-11 px-4 py-2 text-sm font-semibold disabled:cursor-wait disabled:opacity-60">
                             <span x-text="running ? 'Running…' : 'Run tests'"></span>
                         </button>
                     </div>
@@ -44,29 +44,29 @@
                     <div class="mt-4 space-y-2" aria-live="polite">
                         <template x-for="(test, index) in results" :key="index">
                             <div class="flex items-center justify-between rounded border px-3 py-2 text-sm"
-                                :class="test.passed ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'">
+                                :class="test.passed ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100' : 'border-rose-300/20 bg-rose-300/10 text-rose-100'">
                                 <span x-text="test.label"></span>
                                 <span class="font-bold" x-text="test.passed ? 'PASS' : 'FAIL'"></span>
                             </div>
                         </template>
-                        <p x-show="!results.length && !running" class="text-sm text-gray-500">
+                        <p x-show="!results.length && !running" class="text-sm leading-6 text-ink-subtle">
                             Run your code to check it against the challenge tests.
                         </p>
-                        <p x-show="error" x-text="error" class="rounded bg-red-50 p-3 text-sm text-red-800" role="alert"></p>
+                        <p x-show="error" x-text="error" class="rounded-[var(--radius-control)] border border-rose-300/20 bg-rose-300/10 p-3 text-sm leading-5 text-rose-100" role="alert"></p>
                     </div>
                 </div>
 
-                <div class="rounded-lg bg-slate-950 p-5 shadow-sm">
-                    <h2 class="font-bold text-white">Terminal output</h2>
-                    <pre class="mt-3 min-h-24 whitespace-pre-wrap break-words font-mono text-sm text-slate-200" x-text="output || '$ Ready for your solution.'"></pre>
+                <div class="app-tile p-5">
+                    <h2 class="font-bold text-ink-text">Terminal output</h2>
+                    <pre class="mt-3 min-h-24 whitespace-pre-wrap break-words font-mono text-sm leading-6 text-ink-soft" x-text="output || '$ Ready for your solution.'"></pre>
                 </div>
 
-                <div x-show="badge" x-cloak class="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950" role="status">
+                <div x-show="badge" x-cloak class="rounded-[var(--radius-control)] border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100" role="status">
                     <p class="text-lg font-bold" x-text="badgeUnlocked ? '🏅 Badge unlocked!' : 'All tests passed!'"></p>
                     <p class="mt-1" x-text="badge"></p>
                 </div>
                 @if ($completed)
-                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950">
+                    <div class="rounded-[var(--radius-control)] border border-amber-300/20 bg-amber-300/10 p-5 text-amber-100">
                         <p class="font-bold">Previously unlocked badge</p>
                         <p>{{ $challenge->badge_name }}</p>
                     </div>

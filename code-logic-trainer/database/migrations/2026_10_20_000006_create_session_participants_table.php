@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('quiz_session_id')->constrained('quiz_sessions')->onDelete('cascade');
             $table->foreignId('student_id')->constrained('users')->onDelete('cascade');
-            $table->string('status')->default('joined'); // joined, in_progress, completed
+            $table->string('status')->default('joined'); // joined, in progress, or completed
             $table->unsignedInteger('score')->default(0);
             $table->timestamp('joined_at')->nullable();
             $table->timestamps();
