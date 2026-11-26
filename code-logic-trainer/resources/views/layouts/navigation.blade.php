@@ -1,9 +1,11 @@
-<nav x-data="{ open: false }" class="relative z-20 border-b border-white/10 bg-ink-850/95 text-ink-text shadow-[0_8px_28px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+<nav x-data="{ open: false }"
+    class="relative z-20 border-b border-white/10 bg-ink-850/95 text-ink-text shadow-[0_8px_28px_rgba(0,0,0,0.22)] backdrop-blur-xl">
     <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 justify-between">
             <div class="flex">
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ Auth::user()->isAdmin() ? route('users.index') : (Auth::user()->isProfessor() ? route('professor.dashboard') : route('student.dashboard')) }}" class="rounded-[var(--radius-control)] transition-opacity duration-quick hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-850">
+                    <a href="{{ Auth::user()->isAdmin() ? route('users.index') : (Auth::user()->isProfessor() ? route('professor.dashboard') : route('student.dashboard')) }}"
+                        class="rounded-[var(--radius-control)] transition-opacity duration-quick hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-4 focus-visible:ring-offset-ink-850">
                         <x-application-logo class="block h-8 w-auto sm:h-9" />
                     </a>
                 </div>
@@ -50,7 +52,8 @@
             </div>
 
             <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48" content-classes="py-1.5 border border-white/10 rounded-[var(--radius-control)] bg-ink-750/95 shadow-[0_16px_36px_-18px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+                <x-dropdown align="right" width="48"
+                    content-classes="py-1.5 border border-white/10 rounded-[var(--radius-control)] bg-ink-750/95 shadow-[0_16px_36px_-18px_rgba(0,0,0,0.8)] backdrop-blur-xl">
                     <x-slot name="trigger">
                         <button
                             class="inline-flex items-center rounded-[var(--radius-control)] border border-transparent px-3 py-2 text-sm font-medium leading-4 text-ink-muted transition-colors duration-quick hover:border-white/10 hover:bg-white/5 hover:text-ink-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400">
@@ -86,7 +89,8 @@
             </div>
 
             <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" x-bind:aria-expanded="open.toString()" aria-label="Toggle navigation menu"
+                <button @click="open = ! open" x-bind:aria-expanded="open.toString()"
+                    aria-label="Toggle navigation menu"
                     class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-control)] p-2 text-ink-muted transition-colors duration-quick hover:bg-white/5 hover:text-ink-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{ 'hidden': open, 'inline-flex': !open }" class="inline-flex"
@@ -100,7 +104,8 @@
         </div>
     </div>
 
-    <div :class="{ 'block': open, 'hidden': !open }" class="hidden border-t border-white/8 bg-ink-850/95 px-4 pb-3 pt-2 sm:hidden">
+    <div :class="{ 'block': open, 'hidden': !open }"
+        class="hidden border-t border-white/8 bg-ink-850/95 px-4 pb-3 pt-2 sm:hidden">
         <div class="space-y-1">
             @if (Auth::user()->isAdmin())
                 <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*') || request()->routeIs('admin.users.*')">

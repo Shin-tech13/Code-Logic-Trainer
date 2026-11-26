@@ -130,19 +130,20 @@
                     @csrf
                     @method('PATCH')
                     <label for="session-seconds-per-question" class="auth-label">Seconds per question</label>
-                    <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start">
                         <div class="w-full sm:max-w-xs">
                             <input id="session-seconds-per-question" x-ref="secondsPerQuestion" name="seconds_per_question" type="number" min="0" max="100" step="1"
-                                value="{{ old('seconds_per_question', $session->seconds_per_question) }}" placeholder="20 (default)" class="auth-input"
+                                value="{{ old('seconds_per_question', $session->seconds_per_question) }}" placeholder="20 (default)"
+                                class="min-h-11 w-full rounded-[var(--radius-control)] border border-white/15 bg-ink-900/80 px-3 py-2 text-ink-text placeholder:text-ink-subtle focus:border-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                 @input="$event.target.value = window.normalizeQuestionTimer($event.target.value)"
                                 @blur="$event.target.value = window.normalizeQuestionTimer($event.target.value, true)">
+                            <p class="mt-2 text-xs leading-5 text-ink-subtle">1–100s (leave blank or 0 for default 20s; values above 100 cap at 100s)</p>
+                            @error('seconds_per_question')
+                                <p class="auth-input-error mt-2 text-sm" role="alert">{{ $message }}</p>
+                            @enderror
                         </div>
-                        <button type="submit" class="auth-primary-button inline-flex min-h-11 items-center justify-center px-5 text-sm font-semibold">Save timer</button>
+                        <button type="submit" class="auth-primary-button inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap px-5 text-sm font-semibold">Save timer</button>
                     </div>
-                    <p class="mt-2 text-xs leading-5 text-ink-subtle">1–100s (leave blank or 0 for default 20s; values above 100 cap at 100s)</p>
-                    @error('seconds_per_question')
-                        <p class="auth-input-error mt-2 text-sm" role="alert">{{ $message }}</p>
-                    @enderror
                 </form>
             </section>
         @endif
@@ -166,38 +167,38 @@
         </div>
 
         <section class="app-glass-panel p-5 sm:p-6" aria-labelledby="live-analytics-heading">
-            <header class="flex flex-col gap-4 border-b border-white/10 pb-4 lg:flex-row lg:items-end lg:justify-between">
+            <header class="space-y-4 border-b border-white/10 pb-4">
                 <div>
                     <h2 id="live-analytics-heading" class="text-lg font-semibold tracking-tight text-ink-text">Question analytics</h2>
                     <p class="mt-1 text-sm leading-6 text-ink-subtle">Compare live progress, answer accuracy, and question coverage.</p>
                 </div>
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div class="flex flex-wrap gap-2" role="group" aria-label="Analytics dimension">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-nowrap gap-2" role="group" aria-label="Analytics dimension">
                         <button type="button" @click="activeDimension = 'students'" :aria-pressed="activeDimension === 'students'"
                             :class="activeDimension === 'students' ? 'border-accent-300/35 bg-accent-400/10 text-accent-100' : 'border-white/10 bg-white/[0.03] text-ink-muted hover:text-ink-text'"
-                            class="min-h-10 rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
+                            class="min-h-10 shrink-0 whitespace-nowrap rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                             By student
                         </button>
                         <button type="button" @click="activeDimension = 'topics'" :aria-pressed="activeDimension === 'topics'"
                             :class="activeDimension === 'topics' ? 'border-accent-300/35 bg-accent-400/10 text-accent-100' : 'border-white/10 bg-white/[0.03] text-ink-muted hover:text-ink-text'"
-                            class="min-h-10 rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
+                            class="min-h-10 shrink-0 whitespace-nowrap rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                             By topic
                         </button>
                         <button type="button" @click="activeDimension = 'difficulties'" :aria-pressed="activeDimension === 'difficulties'"
                             :class="activeDimension === 'difficulties' ? 'border-accent-300/35 bg-accent-400/10 text-accent-100' : 'border-white/10 bg-white/[0.03] text-ink-muted hover:text-ink-text'"
-                            class="min-h-10 rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
+                            class="min-h-10 shrink-0 whitespace-nowrap rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                             By difficulty
                         </button>
                     </div>
-                    <div class="flex gap-2" role="group" aria-label="Chart orientation">
+                    <div class="flex shrink-0 flex-nowrap gap-2" role="group" aria-label="Chart orientation">
                         <button type="button" @click="orientation = 'column'" :aria-pressed="orientation === 'column'"
                             :class="orientation === 'column' ? 'border-accent-300/35 bg-accent-400/10 text-accent-100' : 'border-white/10 bg-white/[0.03] text-ink-muted hover:text-ink-text'"
-                            class="min-h-10 rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
+                            class="min-h-10 shrink-0 whitespace-nowrap rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                             Column chart
                         </button>
                         <button type="button" @click="orientation = 'bar'" :aria-pressed="orientation === 'bar'"
                             :class="orientation === 'bar' ? 'border-accent-300/35 bg-accent-400/10 text-accent-100' : 'border-white/10 bg-white/[0.03] text-ink-muted hover:text-ink-text'"
-                            class="min-h-10 rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
+                            class="min-h-10 shrink-0 whitespace-nowrap rounded-[var(--radius-field)] border px-3 text-sm font-medium transition-colors duration-quick focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400">
                             Bar chart
                         </button>
                     </div>
