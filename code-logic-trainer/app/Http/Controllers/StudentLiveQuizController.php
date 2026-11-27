@@ -26,28 +26,35 @@ class StudentLiveQuizController extends Controller
 
         $code = strtoupper(trim($request->input('quiz_code')));
 
-        $session = QuizSession::live()
-            ->where('quiz_code', $code)
-            ->whereIn('status', ['waiting', 'in_progress'])
-            ->first();
+        $session = DB::transaction(function () use ($code) {
+            $session = QuizSession::live()
+                ->where('quiz_code', $code)
+                ->whereIn('status', ['waiting', 'in_progress'])
+                ->lockForUpdate()
+                ->first();
 
-        if (! $session) {
-            throw ValidationException::withMessages([
-                'quiz_code' => 'No active session found for that code. Double-check the code and try again.',
-            ]);
-        }
+            if (! $session) {
+                throw ValidationException::withMessages([
+                    'quiz_code' => 'No active session found for that code. Double-check the code and try again.',
+                ]);
+            }
 
-        // Students may join before or after the exam starts.
-        $participant = SessionParticipant::firstOrCreate(
-            [
-                'quiz_session_id' => $session->id,
-                'student_id'      => Auth::id(),
-            ],
-            [
-                'status'    => 'joined',
-                'joined_at' => now(),
-            ]
-        );
+            $participant = SessionParticipant::firstOrCreate(
+                [
+                    'quiz_session_id' => $session->id,
+                    'student_id' => Auth::id(),
+                ],
+                [
+                    'status' => 'joined',
+                    'joined_at' => now(),
+                ]
+            );
+            if ($participant->submitted_at === null && $participant->status !== 'completed') {
+                $participant->forceFill(['last_active_at' => now()])->save();
+            }
+
+            return $session;
+        });
 
         return redirect()->route('student.live.lobby', $session->id);
     }
@@ -99,7 +106,6 @@ class StudentLiveQuizController extends Controller
             'participants'  => $session->participants->map(fn ($p) => [
                 'name'       => $p->student->name,
                 'status'     => $p->status,
-                'score'      => $p->score,
             ]),
         ]);
     }
@@ -120,6 +126,15 @@ class StudentLiveQuizController extends Controller
 
         if ($session->status === 'waiting') {
             return redirect()->route('student.live.lobby', $session->id);
+        }
+
+        if ($session->status === 'in_progress'
+            && in_array($participant->status, ['joined', 'in_progress'], true)) {
+            $participant->forceFill([
+                'status' => 'in_progress',
+                'started_at' => $participant->started_at ?? now(),
+                'last_active_at' => now(),
+            ])->save();
         }
 
         $session->load('quiz.questions');
@@ -167,6 +182,7 @@ class StudentLiveQuizController extends Controller
 
             $participant->tab_switch_count++;
             $participant->last_tab_switch_at = now();
+            $participant->last_active_at = now();
             $participant->last_tab_switch_reason = 'Tab switch / window blur detected';
             $participant->save();
 
@@ -240,9 +256,12 @@ class StudentLiveQuizController extends Controller
             $questionKey = (string) $question->id;
             $changed = array_key_exists($questionKey, $answers) && $answers[$questionKey] !== $answer;
             $answers[(string) $question->id] = $answer;
+            $now = now();
             $participant->update([
                 'answers' => $answers,
                 'status' => 'in_progress',
+                'started_at' => $participant->started_at ?? $now,
+                'last_active_at' => $now,
             ]);
 
             return [
@@ -269,89 +288,135 @@ class StudentLiveQuizController extends Controller
 
     public function submit(Request $request, QuizSession $session, AnalyticsService $analytics)
     {
-        if ($session->type !== 'live') {
-            abort(404);
-        }
-        abort_unless($session->status === 'in_progress', 409, 'This live quiz is not accepting submissions.');
+        $result = DB::transaction(function () use ($request, $session) {
+            $lockedSession = QuizSession::query()
+                ->whereKey($session->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            abort_unless($lockedSession->type === 'live', 404);
 
-        $participant = SessionParticipant::where('quiz_session_id', $session->id)
-            ->where('student_id', Auth::id())
-            ->whereIn('status', ['joined', 'in_progress'])
-            ->first();
+            $participant = SessionParticipant::query()
+                ->where('quiz_session_id', $lockedSession->id)
+                ->where('student_id', Auth::id())
+                ->lockForUpdate()
+                ->first();
+            abort_unless($participant, 403, 'You are not a participant in this session.');
 
-        if (! $participant) {
-            abort(403, 'You are not an active participant in this session.');
-        }
+            $questions = $lockedSession->quiz?->questions()->get() ?? collect();
+            if ($participant->submitted_at !== null || $participant->status === 'completed') {
+                $storedAnswers = $participant->answers ?? [];
+                $score = $questions->filter(function ($question) use ($storedAnswers) {
+                    $answer = $storedAnswers[$question->id] ?? $storedAnswers[(string) $question->id] ?? '';
 
-        $validated = $request->validate([
-            'answers' => ['required', 'array', 'min:1'],
-            'answers.*' => ['present', 'nullable', 'string', 'max:1000'],
-        ]);
+                    return $question->isCorrectAnswer((string) $answer);
+                })->count();
 
-        $questions = $session->quiz->questions()->get();
-        $answers = $validated['answers'];
-        $questionIds = $questions->modelKeys();
+                return [
+                    'score' => $score,
+                    'total' => $questions->count(),
+                    'already_submitted' => true,
+                    'question_events' => [],
+                ];
+            }
 
-        if (count($answers) !== count($questionIds)
-            || array_diff(array_map('strval', array_keys($answers)), array_map('strval', $questionIds))) {
-            abort(422, 'Submit one answer for every question in this quiz.');
-        }
-
-        $score = 0;
-        foreach ($questions as $question) {
-            $answer = $answers[$question->id] ?? null;
-            $normalizedAnswer = trim((string) $answer);
-            $normalizedOptions = array_map(
-                static fn ($option) => trim((string) $option),
-                $question->options ?? []
+            abort_unless($lockedSession->status === 'in_progress', 409, 'This live quiz is not accepting submissions.');
+            abort_unless(
+                in_array($participant->status, ['joined', 'in_progress'], true),
+                403,
+                'You are not an active participant in this session.'
             );
 
-            if ($normalizedAnswer !== ''
-                && $question->question_type !== 'fill_in_the_blank'
-                && ! in_array($normalizedAnswer, $normalizedOptions, true)) {
-                abort(422, 'A submitted answer is not one of the available options.');
+            $validated = $request->validate([
+                'answers' => ['required', 'array', 'min:1'],
+                'answers.*' => ['present', 'nullable', 'string', 'max:1000'],
+            ]);
+
+            $answers = $validated['answers'];
+            $questionIds = $questions->modelKeys();
+            if (count($answers) !== count($questionIds)
+                || array_diff(array_map('strval', array_keys($answers)), array_map('strval', $questionIds))) {
+                abort(422, 'Submit one answer for every question in this quiz.');
             }
 
-            $answers[$question->id] = $normalizedAnswer;
+            $score = 0;
+            $questionEvents = [];
+            foreach ($questions as $question) {
+                $answer = trim((string) ($answers[$question->id] ?? ''));
+                $normalizedOptions = array_map(
+                    static fn ($option) => trim((string) $option),
+                    $question->options ?? []
+                );
 
-            if ($question->isCorrectAnswer($normalizedAnswer)) {
-                $score++;
+                if ($answer !== ''
+                    && $question->question_type !== 'fill_in_the_blank'
+                    && ! in_array($answer, $normalizedOptions, true)) {
+                    abort(422, 'A submitted answer is not one of the available options.');
+                }
+
+                $answers[$question->id] = $answer;
+                $isCorrect = $question->isCorrectAnswer($answer);
+                $score += (int) $isCorrect;
+                $questionEvents[] = [
+                    'question_id' => $question->id,
+                    'answer' => $answer,
+                    'is_correct' => $isCorrect,
+                    'is_fill_in_the_blank' => $question->question_type === 'fill_in_the_blank',
+                ];
             }
-        }
 
-        $participant->update([
-            'score' => $score,
-            'status' => 'completed',
-            'answers' => $answers,
-        ]);
-        foreach ($questions as $question) {
-            $answer = (string) ($answers[$question->id] ?? '');
+            $now = now();
+            $participant->update([
+                'score' => $score,
+                'status' => 'completed',
+                'answers' => $answers,
+                'started_at' => $participant->started_at ?? $now,
+                'last_active_at' => $now,
+                'submitted_at' => $now,
+            ]);
+
+            return [
+                'score' => $score,
+                'total' => count($questionIds),
+                'already_submitted' => false,
+                'question_events' => $questionEvents,
+            ];
+        });
+
+        if (! $result['already_submitted']) {
+            foreach ($result['question_events'] as $questionEvent) {
+                $answer = $questionEvent['answer'];
+                $analytics->record([
+                    'user_id' => Auth::id(),
+                    'role' => Auth::user()->role,
+                    'session_id' => $session->id,
+                    'quiz_id' => $session->quiz_id,
+                    'question_id' => $questionEvent['question_id'],
+                    'event_type' => 'answer_submitted',
+                    'payload' => [
+                        'selected_option' => $questionEvent['is_fill_in_the_blank'] || $answer === '' ? null : $answer,
+                        'is_correct' => $questionEvent['is_correct'],
+                    ],
+                ]);
+            }
             $analytics->record([
                 'user_id' => Auth::id(),
                 'role' => Auth::user()->role,
                 'session_id' => $session->id,
                 'quiz_id' => $session->quiz_id,
-                'question_id' => $question->id,
-                'event_type' => 'answer_submitted',
+                'event_type' => 'attempt_completed',
                 'payload' => [
-                    'selected_option' => $question->question_type === 'fill_in_the_blank' || $answer === '' ? null : $answer,
-                    'is_correct' => $question->isCorrectAnswer($answer),
+                    'score' => $result['score'],
+                    'question_count' => $result['total'],
+                    'attempt_type' => 'live',
                 ],
             ]);
         }
-        $analytics->record([
-            'user_id' => Auth::id(),
-            'role' => Auth::user()->role,
-            'session_id' => $session->id,
-            'quiz_id' => $session->quiz_id,
-            'event_type' => 'attempt_completed',
-            'payload' => ['score' => $score, 'question_count' => count($questionIds), 'attempt_type' => 'live'],
-        ]);
 
         return response()->json([
             'success'      => true,
-            'score'        => $score,
-            'total'        => count($questionIds),
+            'score'        => $result['score'],
+            'total'        => $result['total'],
+            'already_submitted' => $result['already_submitted'],
             'redirect_url' => route('student.live.complete', $session->id),
         ]);
     }

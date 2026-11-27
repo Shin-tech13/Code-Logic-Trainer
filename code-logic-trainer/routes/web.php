@@ -84,6 +84,10 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
     Route::post('/quizzes/{quiz}/launch', [ProfessorSessionController::class, 'launch'])->name('sessions.launch');
     Route::get('/sessions/{session}/lobby', [ProfessorSessionController::class, 'lobby'])->name('sessions.lobby');
     Route::get('/sessions/{session}/status', [ProfessorSessionController::class, 'lobbyStatus'])->name('sessions.status');
+    Route::get('/sessions/{session}/summary', [ProfessorSessionController::class, 'summary'])->name('sessions.summary');
+    Route::get('/sessions/{session}/participants', [ProfessorSessionController::class, 'participants'])->name('sessions.participants');
+    Route::get('/sessions/{session}/participants/{participant}', [ProfessorSessionController::class, 'participant'])->name('sessions.participants.show');
+    Route::get('/sessions/{session}/export', [ProfessorSessionController::class, 'export'])->name('sessions.export');
     Route::patch('/sessions/{session}/timer', [ProfessorSessionController::class, 'updateTimer'])->name('sessions.timer.update');
     Route::post('/sessions/{session}/start', [ProfessorSessionController::class, 'start'])->name('sessions.start');
     Route::post('/sessions/{session}/end', [ProfessorSessionController::class, 'end'])->name('sessions.end');

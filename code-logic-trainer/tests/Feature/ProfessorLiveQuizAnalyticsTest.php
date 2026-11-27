@@ -38,7 +38,7 @@ function createAnalyticsQuiz(User $professor, int $questionCount = 2): array
     return [$quiz, $session, $questions];
 }
 
-test('professor live poll returns sorted student analytics and unassigned topic and difficulty groups', function () {
+test('professor live poll returns name-sorted student analytics and unassigned topic and difficulty groups', function () {
     $professor = User::factory()->create(['role' => 'professor']);
     $slowStudent = User::factory()->create(['name' => 'Ada Slow', 'is_whitelisted' => true]);
     $fastStudent = User::factory()->create(['name' => 'Zed Fast', 'is_whitelisted' => true]);
@@ -65,10 +65,10 @@ test('professor live poll returns sorted student analytics and unassigned topic 
         ->assertOk()
         ->assertJsonPath('analytics.question_count', 2)
         ->assertJsonPath('analytics.participant_count', 2)
-        ->assertJsonPath('analytics.students.0.label', 'Zed Fast')
-        ->assertJsonPath('analytics.students.0.answered_count', 2)
-        ->assertJsonPath('analytics.students.0.remaining_count', 0)
-        ->assertJsonPath('analytics.students.1.label', 'Ada Slow')
+        ->assertJsonPath('analytics.students.0.label', 'Ada Slow')
+        ->assertJsonPath('analytics.students.0.answered_count', 1)
+        ->assertJsonPath('analytics.students.0.remaining_count', 1)
+        ->assertJsonPath('analytics.students.1.label', 'Zed Fast')
         ->assertJsonPath('analytics.topics.0.label', 'Unassigned')
         ->assertJsonPath('analytics.topics.0.total_count', 2)
         ->assertJsonPath('analytics.topics.0.average_answered_count', 1.5)
@@ -77,9 +77,9 @@ test('professor live poll returns sorted student analytics and unassigned topic 
 
     $this->get(route('professor.sessions.lobby', $session))
         ->assertOk()
-        ->assertSee('Question analytics')
+        ->assertSee('Live class analytics')
         ->assertSee('By difficulty')
-        ->assertSee('Column chart');
+        ->assertSee('Question breakdown');
 });
 
 test('live answer progress is ownership-checked and immediately appears in professor analytics', function () {

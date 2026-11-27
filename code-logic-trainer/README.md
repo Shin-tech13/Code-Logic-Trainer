@@ -50,6 +50,14 @@ Professor quiz analytics are restricted to quizzes owned by the signed-in profes
 
 Apply the analytics migration with the regular deployment migration command after backing up production. Student progress and professor reports use existing attempt, participant, and challenge records alongside the new event table; existing records are not rewritten or backfilled with historical response-time or challenge-run telemetry.
 
+## Live session monitoring
+
+Live monitoring uses saved participant answers and server-calculated correctness. Accuracy is `correct / non-empty answered responses`; blank or unanswered questions are excluded from the accuracy denominator and reported separately. A participant score is withheld until submission, then shown as `correct / question count`.
+
+Participant activity timestamps distinguish joining, opening the quiz, last activity, and submission. A started participant with no activity for more than two minutes is marked disconnected; an ended session marks every non-submitter disconnected. Reopening an active quiz refreshes activity. Professor session summaries, paginated rosters, participant details, and post-session CSV exports are restricted to the session owner. Default roster and export data omit email addresses and submitted answer contents. Tab-switch counts are subdued monitoring signals for review, not proof of misconduct.
+
+The live-session migration backfills start/activity timestamps for existing in-progress and completed participants from their existing update/join times; completed records also receive a submitted timestamp. Apply the migration with the regular deployment migration process after reviewing and backing up the target database.
+
 Existing users keep their current email value as their login address, and the migration copies existing non-`@codelogic.com` addresses into the private recovery field. Existing `@codelogic.com` logins are not treated as mailboxes; those users need to set a recovery email in their profile.
 
 Before deploying the schema change, back up the production database. Then run the migration once against the intended database:

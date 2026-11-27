@@ -15,6 +15,9 @@ class SessionParticipant extends Model
         'status',
         'score',
         'joined_at',
+        'started_at',
+        'last_active_at',
+        'submitted_at',
         'answers',
         'tab_switch_count',
         'last_tab_switch_at',
@@ -23,6 +26,9 @@ class SessionParticipant extends Model
 
     protected $casts = [
         'joined_at' => 'datetime',
+        'started_at' => 'datetime',
+        'last_active_at' => 'datetime',
+        'submitted_at' => 'datetime',
         'answers' => 'array',
         'tab_switch_count' => 'integer',
         'last_tab_switch_at' => 'datetime',
