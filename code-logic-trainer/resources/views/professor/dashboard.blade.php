@@ -51,8 +51,10 @@
                     },
                 
                     stopProgress() {
-                        if (this._timer) { clearInterval(this._timer);
-                            this._timer = null; }
+                        if (this._timer) {
+                            clearInterval(this._timer);
+                            this._timer = null;
+                        }
                     },
                 
                     selectPdf(event) {
@@ -181,8 +183,8 @@
                         <input id="quiz-pdf" type="file" x-ref="pdf" accept="application/pdf" required
                             @change="selectPdf($event)" class="professor-file-input mt-2 block w-full"
                             aria-describedby="pdf-guidance">
-                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-ink-subtle">Guidelines: -PDF only <br>
-                            maximum 20 MB. Text extraction is local when possible; if the parser cannot read the PDF,
+                        <p id="pdf-guidance" class="mt-2 text-xs leading-5 text-ink-subtle">Guidelines: -PDF only,
+                            -Maximum 20 MB. Text extraction is local when possible; if the parser cannot read the PDF,
                             Gemini may receive it for extraction. Extracted text is normally sent to Gemini and may also
                             be sent to Groq if Gemini is temporarily unavailable. Review each provider's current
                             data-handling terms before uploading sensitive material.</p>
@@ -275,6 +277,10 @@
                                             Start live session
                                         </button>
                                     </form>
+                                    <a href="{{ route('professor.analytics.show', $quiz->id) }}"
+                                        class="app-secondary-button inline-flex min-h-10 items-center justify-center px-4 text-sm font-semibold">
+                                        View analytics
+                                    </a>
                                     <form method="POST" action="{{ route('professor.quizzes.destroy', $quiz->id) }}"
                                         onsubmit="return confirm('Delete this quiz?');">
                                         @csrf

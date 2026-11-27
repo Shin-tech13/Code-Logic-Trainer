@@ -8,6 +8,7 @@ use App\Exceptions\QuizProviderException;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
 use App\Models\UploadedFile as StoredUpload;
+use App\Services\AnalyticsService;
 use App\Services\GeminiQuizService;
 use App\Services\QuizGeneratorService;
 use App\Support\QuestionTimer;
@@ -37,13 +38,14 @@ class StudentQuizController extends Controller
     }
 
     // Resume the student's latest quiz when one exists.
-    public function index()
+    public function index(AnalyticsService $analytics)
     {
         $session = QuizSession::where('student_id', Auth::id())
             ->latest()
             ->first();
+        $progressWidget = $analytics->studentWidget(Auth::user());
 
-        return view('student.dashboard', compact('session'));
+        return view('student.dashboard', compact('session', 'progressWidget'));
     }
 
     public function history(Request $request)
@@ -53,6 +55,7 @@ class StudentQuizController extends Controller
             'date_from' => ['nullable', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'type' => ['nullable', Rule::in(['self_study', 'live'])],
+            'attempt_id' => ['nullable', 'integer'],
         ]);
 
         $selfStudyAttempts = DB::table('quiz_sessions')
@@ -83,6 +86,9 @@ class StudentQuizController extends Controller
 
         if (! empty($filters['type'])) {
             $attemptsQuery->where('history_type', $filters['type']);
+        }
+        if (! empty($filters['attempt_id'])) {
+            $attemptsQuery->where('attempt_id', $filters['attempt_id']);
         }
         if (! empty($filters['date_from'])) {
             $attemptsQuery->whereDate('taken_at', '>=', $filters['date_from']);
@@ -126,6 +132,7 @@ class StudentQuizController extends Controller
                     questions: $session->questions,
                     answers: $session->answers ?? [],
                     type: 'self_study',
+                    attemptId: $attempt->attempt_id,
                 );
             }
 
@@ -139,13 +146,14 @@ class StudentQuizController extends Controller
                 questions: $session->quiz->questions,
                 answers: $participant->answers ?? [],
                 type: 'live',
+                attemptId: $attempt->attempt_id,
             );
         });
 
         return view('student.history', compact('history', 'filters'));
     }
 
-    private function historyEntry(string $title, $takenAt, int $score, $questions, array $answers, string $type): array
+    private function historyEntry(string $title, $takenAt, int $score, $questions, array $answers, string $type, int $attemptId): array
     {
         $reviewAnswers = $questions->values()->map(function ($question, $index) use ($answers) {
             $answer = $answers[$question->id] ?? null;
@@ -174,6 +182,7 @@ class StudentQuizController extends Controller
             'incorrect' => $reviewAnswers->where('is_correct', false)->values(),
             'answers' => $reviewAnswers,
             'type' => $type,
+            'attempt_id' => $attemptId,
         ];
     }
 
@@ -410,6 +419,17 @@ class StudentQuizController extends Controller
 
         $session->load('questions');
         $secondsPerQuestion = QuestionTimer::normalize($session->seconds_per_question);
+        foreach ($session->questions as $question) {
+            app(AnalyticsService::class)->record([
+                'user_id' => Auth::id(),
+                'role' => Auth::user()->role,
+                'session_id' => $session->id,
+                'question_id' => $question->id,
+                'topic' => $session->topic,
+                'language' => $session->language,
+                'event_type' => 'question_shown',
+            ]);
+        }
 
         return view('student.play', compact('session', 'secondsPerQuestion'));
     }
@@ -461,6 +481,24 @@ class StudentQuizController extends Controller
             'is_correct' => $isCorrect,
         ];
 
+        $selectionKey = 'analytics.quiz.'.$session->id.'.question.'.$question->id;
+        $previousSelection = session($selectionKey);
+        if ($previousSelection !== null && $previousSelection !== $normalizedAnswer) {
+            app(AnalyticsService::class)->record([
+                'user_id' => Auth::id(),
+                'role' => Auth::user()->role,
+                'session_id' => $session->id,
+                'question_id' => $question->id,
+                'topic' => $session->topic,
+                'language' => $session->language,
+                'event_type' => 'answer_changed',
+                'payload' => [
+                    'selected_option' => $question->question_type === 'fill_in_the_blank' ? null : $normalizedAnswer,
+                ],
+            ]);
+        }
+        session([$selectionKey => $normalizedAnswer]);
+
         if (! $isCorrect) {
             $response['correct_answer'] = $question->correct_answer;
             $response['explanation'] = $question->explanation;
@@ -469,7 +507,7 @@ class StudentQuizController extends Controller
         return response()->json($response);
     }
 
-    public function submit(Request $request, QuizSession $session)
+    public function submit(Request $request, QuizSession $session, AnalyticsService $analytics)
     {
         abort_unless($session->student_id === Auth::id(), 403);
         abort_unless($session->status === 'active', 409, 'This quiz has already been submitted.');
@@ -477,6 +515,8 @@ class StudentQuizController extends Controller
         $validated = $request->validate([
             'answers' => ['required', 'array', 'min:1'],
             'answers.*' => ['present', 'nullable', 'string', 'max:1000'],
+            'response_times' => ['sometimes', 'array'],
+            'response_times.*' => ['nullable', 'integer', 'min:0', 'max:3600000'],
         ]);
 
         $questions = $session->questions()->get();
@@ -519,6 +559,36 @@ class StudentQuizController extends Controller
             'score' => $score,
             'status' => 'completed',
             'answers' => $answers,
+        ]);
+        foreach ($questions as $question) {
+            $answer = (string) ($answers[$question->id] ?? '');
+            $analytics->record([
+                'user_id' => Auth::id(),
+                'role' => Auth::user()->role,
+                'session_id' => $session->id,
+                'question_id' => $question->id,
+                'topic' => $session->topic,
+                'language' => $session->language,
+                'event_type' => 'answer_submitted',
+                'payload' => [
+                    'selected_option' => $question->question_type === 'fill_in_the_blank'
+                        || in_array($answer, ['', self::TIMEOUT_ANSWER], true)
+                        ? null
+                        : $answer,
+                    'is_correct' => $question->isCorrectAnswer($answer),
+                    'timed_out' => $answer === self::TIMEOUT_ANSWER,
+                    'response_time_ms' => $validated['response_times'][$question->id] ?? null,
+                ],
+            ]);
+        }
+        $analytics->record([
+            'user_id' => Auth::id(),
+            'role' => Auth::user()->role,
+            'session_id' => $session->id,
+            'topic' => $session->topic,
+            'language' => $session->language,
+            'event_type' => 'attempt_completed',
+            'payload' => ['score' => $score, 'question_count' => count($questionIds), 'attempt_type' => 'self_study'],
         ]);
 
         return response()->json([

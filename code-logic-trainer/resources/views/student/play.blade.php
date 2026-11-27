@@ -82,6 +82,7 @@
             const totalQuestions = slides.length;
             let currentIndex = 0;
             const answers = {};
+            const responseTimes = {};
             const progressBar = document.getElementById('progress-bar');
             const progressText = document.getElementById('progress-text');
             const counter = document.getElementById('question-counter');
@@ -90,6 +91,7 @@
             const timeoutAnswer = @json(\App\Http\Controllers\StudentQuizController::TIMEOUT_ANSWER);
             let timerInterval = null;
             let remainingSeconds = questionTimeLimit;
+            let questionStartedAt = Date.now();
 
             function updateProgress() {
                 const percentage = Math.round((currentIndex / totalQuestions) * 100);
@@ -116,6 +118,7 @@
 
             function startTimer() {
                 remainingSeconds = questionTimeLimit;
+                questionStartedAt = Date.now();
                 renderTimer();
                 timerInterval = setInterval(() => {
                     remainingSeconds--;
@@ -124,6 +127,7 @@
                         stopTimer();
                         const slide = slides[currentIndex];
                         answers[slide.dataset.questionId] = timeoutAnswer;
+                        responseTimes[slide.dataset.questionId] = questionTimeLimit * 1000;
                         checkAnswer(slide, null, true);
                     }
                 }, 1000);
@@ -144,7 +148,7 @@
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ answers })
+                    body: JSON.stringify({ answers, response_times: responseTimes })
                 }).then(async response => {
                     const data = await response.json();
                     if (!response.ok || !data.success) throw new Error(data.message || 'Could not submit quiz answers.');
@@ -175,6 +179,7 @@
                 buttons.forEach(button => button.disabled = true);
                 if (fillInput) fillInput.disabled = true;
                 if (fillSubmit) fillSubmit.disabled = true;
+                responseTimes[slide.dataset.questionId] = Math.max(0, Date.now() - questionStartedAt);
                 feedbackError.classList.add('hidden');
 
                 fetch("{{ route('student.quiz.answer', $session->id) }}", {

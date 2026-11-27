@@ -38,6 +38,9 @@
                         <x-nav-link :href="route('student.history')" :active="request()->routeIs('student.history')">
                             {{ __('Quiz history') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('student.progress')" :active="request()->routeIs('student.progress')">
+                            {{ __('My Progress') }}
+                        </x-nav-link>
                         <x-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
                             {{ __('My profile') }}
                         </x-nav-link>
@@ -133,6 +136,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('student.history')" :active="request()->routeIs('student.history')">
                     {{ __('Quiz history') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('student.progress')" :active="request()->routeIs('student.progress')">
+                    {{ __('My Progress') }}
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('profile.edit')" :active="request()->routeIs('profile.*')">
                     {{ __('My profile') }}

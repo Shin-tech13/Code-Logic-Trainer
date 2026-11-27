@@ -38,9 +38,9 @@
             </form>
 
             @forelse ($history as $attempt)
-                @php($attemptId = 'history-attempt-'.$loop->index)
-                <article class="app-glass-panel overflow-hidden">
-                    <details class="history-attempt">
+                @php($attemptId = 'history-attempt-'.$attempt['type'].'-'.$attempt['attempt_id'])
+                <article class="app-glass-panel overflow-hidden" id="{{ $attemptId }}">
+                    <details class="history-attempt" @if ((string) request('attempt_id') === (string) $attempt['attempt_id'] && request('type') === $attempt['type']) open @endif>
                         <summary class="cursor-pointer list-none p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-accent-300 sm:p-6">
                             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div class="min-w-0">
@@ -64,7 +64,7 @@
                             </div>
                         </summary>
 
-                        <div id="{{ $attemptId }}" class="border-t border-white/10 px-5 pb-5 pt-4 sm:px-6 sm:pb-6" x-data="{ answerView: 'incorrect' }">
+                        <div class="border-t border-white/10 px-5 pb-5 pt-4 sm:px-6 sm:pb-6" x-data="{ answerView: 'incorrect' }">
                             @if ($attempt['incorrect']->isEmpty())
                                 <p class="mb-4 rounded-[var(--radius-control)] border border-emerald-300/20 bg-emerald-300/[0.05] px-4 py-3 text-sm leading-5 text-emerald-100">
                                     All questions were answered correctly.

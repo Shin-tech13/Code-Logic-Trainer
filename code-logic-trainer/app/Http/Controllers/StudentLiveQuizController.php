@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
+use App\Services\AnalyticsService;
 use App\Support\QuestionTimer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -103,7 +104,7 @@ class StudentLiveQuizController extends Controller
         ]);
     }
 
-    public function take(QuizSession $session)
+    public function take(QuizSession $session, AnalyticsService $analytics)
     {
         if ($session->type !== 'live') {
             abort(404);
@@ -122,6 +123,16 @@ class StudentLiveQuizController extends Controller
         }
 
         $session->load('quiz.questions');
+        foreach ($session->quiz->questions as $question) {
+            $analytics->record([
+                'user_id' => Auth::id(),
+                'role' => Auth::user()->role,
+                'session_id' => $session->id,
+                'quiz_id' => $session->quiz_id,
+                'question_id' => $question->id,
+                'event_type' => 'question_shown',
+            ]);
+        }
         $secondsPerQuestion = QuestionTimer::normalize($session->seconds_per_question);
         $examActive = $session->status === 'in_progress'
             && in_array($participant->status, ['joined', 'in_progress'], true);
@@ -130,7 +141,7 @@ class StudentLiveQuizController extends Controller
     }
 
     // Record visibility and focus loss for the professor.
-    public function flagTabSwitch(QuizSession $session)
+    public function flagTabSwitch(QuizSession $session, AnalyticsService $analytics)
     {
         $participant = DB::transaction(function () use ($session) {
             $lockedSession = QuizSession::query()
@@ -161,6 +172,14 @@ class StudentLiveQuizController extends Controller
 
             return $participant;
         });
+        $analytics->record([
+            'user_id' => Auth::id(),
+            'role' => Auth::user()->role,
+            'session_id' => $session->id,
+            'quiz_id' => $session->quiz_id,
+            'event_type' => 'tab_switched',
+            'payload' => ['reason' => 'visibility_or_window_blur'],
+        ]);
 
         return response()->json([
             'flagged' => true,
@@ -176,9 +195,10 @@ class StudentLiveQuizController extends Controller
         $validated = $request->validate([
             'question_id' => ['required', 'integer'],
             'answer' => ['present', 'nullable', 'string', 'max:1000'],
+            'response_time_ms' => ['nullable', 'integer', 'min:0', 'max:3600000'],
         ]);
 
-        DB::transaction(function () use ($validated, $session) {
+        $event = DB::transaction(function () use ($validated, $session) {
             $lockedSession = QuizSession::query()
                 ->whereKey($session->id)
                 ->lockForUpdate()
@@ -217,17 +237,37 @@ class StudentLiveQuizController extends Controller
             }
 
             $answers = $participant->answers ?? [];
+            $questionKey = (string) $question->id;
+            $changed = array_key_exists($questionKey, $answers) && $answers[$questionKey] !== $answer;
             $answers[(string) $question->id] = $answer;
             $participant->update([
                 'answers' => $answers,
                 'status' => 'in_progress',
             ]);
+
+            return [
+                'question_id' => $question->id,
+                'topic' => $lockedSession->topic,
+                'language' => $lockedSession->language,
+                'event_type' => $changed ? 'answer_changed' : 'answer_submitted',
+                'payload' => [
+                    'selected_option' => $question->question_type === 'fill_in_the_blank' || $answer === '' ? null : $answer,
+                    'response_time_ms' => $validated['response_time_ms'] ?? null,
+                ],
+            ];
         });
+        app(AnalyticsService::class)->record([
+            'user_id' => Auth::id(),
+            'role' => Auth::user()->role,
+            'session_id' => $session->id,
+            'quiz_id' => $session->quiz_id,
+            ...$event,
+        ]);
 
         return response()->json(['saved' => true]);
     }
 
-    public function submit(Request $request, QuizSession $session)
+    public function submit(Request $request, QuizSession $session, AnalyticsService $analytics)
     {
         if ($session->type !== 'live') {
             abort(404);
@@ -283,6 +323,29 @@ class StudentLiveQuizController extends Controller
             'score' => $score,
             'status' => 'completed',
             'answers' => $answers,
+        ]);
+        foreach ($questions as $question) {
+            $answer = (string) ($answers[$question->id] ?? '');
+            $analytics->record([
+                'user_id' => Auth::id(),
+                'role' => Auth::user()->role,
+                'session_id' => $session->id,
+                'quiz_id' => $session->quiz_id,
+                'question_id' => $question->id,
+                'event_type' => 'answer_submitted',
+                'payload' => [
+                    'selected_option' => $question->question_type === 'fill_in_the_blank' || $answer === '' ? null : $answer,
+                    'is_correct' => $question->isCorrectAnswer($answer),
+                ],
+            ]);
+        }
+        $analytics->record([
+            'user_id' => Auth::id(),
+            'role' => Auth::user()->role,
+            'session_id' => $session->id,
+            'quiz_id' => $session->quiz_id,
+            'event_type' => 'attempt_completed',
+            'payload' => ['score' => $score, 'question_count' => count($questionIds), 'attempt_type' => 'live'],
         ]);
 
         return response()->json([

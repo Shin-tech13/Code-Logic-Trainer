@@ -68,6 +68,7 @@
             const totalQuestions = slides.length;
             let currentIndex = 0;
             const answers = {};
+            const responseTimes = {};
             const counter = document.getElementById('question-counter');
             const progressBar = document.getElementById('progress-bar');
             const progressText = document.getElementById('progress-text');
@@ -75,6 +76,7 @@
             const questionTimeLimit = @json($secondsPerQuestion);
             let timerInterval = null;
             let remainingSeconds = questionTimeLimit;
+            let questionStartedAt = Date.now();
             const tabSwitchWarning = document.getElementById('tab-switch-warning');
             const tabSwitchWarningMessage = document.getElementById('tab-switch-warning-message');
             const progressSyncWarning = document.getElementById('progress-sync-warning');
@@ -102,6 +104,7 @@
 
             function startTimer() {
                 remainingSeconds = questionTimeLimit;
+                questionStartedAt = Date.now();
                 renderTimer();
                 timerInterval = window.setInterval(() => {
                     remainingSeconds--;
@@ -169,7 +172,7 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
-                        body: JSON.stringify({ question_id: questionId, answer })
+                        body: JSON.stringify({ question_id: questionId, answer, response_time_ms: responseTimes[questionId] ?? null })
                     });
                     const data = await response.json();
                     if (!response.ok || !data.saved) throw new Error(data.message || 'Could not sync quiz progress.');
@@ -234,6 +237,7 @@
                 const controls = slide.querySelectorAll('.option-btn, .fill-answer, .submit-fill-answer');
                 controls.forEach(control => control.disabled = true);
                 answers[slide.dataset.questionId] = answer;
+                responseTimes[slide.dataset.questionId] = Math.max(0, Date.now() - questionStartedAt);
                 queueProgressSave(slide.dataset.questionId, answer);
                 button?.classList.add('border-violet-300/40', 'bg-violet-300/10');
                 window.setTimeout(() => advanceQuestion(slide), 3000);

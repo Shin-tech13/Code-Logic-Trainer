@@ -99,6 +99,13 @@
             }
         }">
 
+        @if ($session->status === 'completed')
+            <div class="flex justify-end">
+                <a href="{{ route('professor.analytics.show', $session->quiz_id) }}" class="auth-primary-button inline-flex min-h-11 items-center justify-center px-4 text-sm font-semibold">
+                    View session analytics
+                </a>
+            </div>
+        @endif
         <div class="app-glass-panel p-6 text-center sm:p-8">
             <p class="mb-2 text-sm text-ink-subtle">Quiz code</p>
             <p class="text-4xl font-extrabold tracking-widest text-accent-200 sm:text-5xl" x-text="quizCode"></p>

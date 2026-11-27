@@ -11,6 +11,7 @@ use App\Http\Controllers\CodeChallengeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\ProfessorStudentController;
+use App\Http\Controllers\AnalyticsController;
 
 // Route signed-in users to their role dashboard.
 Route::get('/', function () {
@@ -74,6 +75,8 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
         ->middleware('throttle:quiz-generation')
         ->name('quizzes.generate');
     Route::get('/quizzes/{quiz}', [ProfessorQuizController::class, 'show'])->name('quizzes.show');
+    Route::get('/quizzes/{quiz}/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
+    Route::get('/quizzes/{quiz}/analytics', [AnalyticsController::class, 'professor'])->name('analytics.show');
     Route::patch('/quizzes/{quiz}/settings', [ProfessorQuizController::class, 'updateSettings'])->name('quizzes.settings.update');
     Route::delete('/quizzes/{quiz}', [ProfessorQuizController::class, 'destroy'])->name('quizzes.destroy');
 
@@ -90,6 +93,7 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
 Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentQuizController::class, 'index'])->name('dashboard');
     Route::get('/history', [StudentQuizController::class, 'history'])->name('history');
+    Route::get('/progress', [AnalyticsController::class, 'student'])->name('progress');
     Route::post('/quiz/generate', [StudentQuizController::class, 'generate'])
         ->middleware('throttle:quiz-generation')
         ->name('quiz.generate');

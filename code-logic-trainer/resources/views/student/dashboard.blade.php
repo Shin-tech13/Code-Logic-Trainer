@@ -16,11 +16,25 @@
                 </a>
             </header>
 
+            <section class="app-glass-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6" aria-labelledby="progress-summary-heading">
+                <div>
+                    <h2 id="progress-summary-heading" class="text-lg font-semibold text-ink-text">Your progress</h2>
+                    <p class="mt-1 text-sm text-ink-subtle">
+                        {{ $progressWidget['attempt_count'] }} completed {{ \Illuminate\Support\Str::plural('assessment', $progressWidget['attempt_count']) }}
+                        @if ($progressWidget['weakest_topic'])
+                            <span aria-hidden="true">·</span>
+                            Focus area: {{ $progressWidget['weakest_topic']['topic'] }}
+                        @endif
+                    </p>
+                </div>
+                <a href="{{ route('student.progress') }}" class="app-secondary-button inline-flex min-h-11 shrink-0 items-center justify-center px-4 text-sm font-semibold">View my progress</a>
+            </section>
+
             <div class="grid gap-6 lg:grid-cols-2">
                 <section class="app-glass-panel p-5 sm:p-7" aria-labelledby="topic-quiz-heading"
                     x-data="{
-                        language: 'PHP',
-                        topic: '',
+                        language: @js(request('practice_language', 'PHP')),
+                        topic: @js(request('practice_topic', '')),
                         isGenerating: false,
                         progress: 0,
                         statusMessage: '',

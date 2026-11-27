@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ChallengeCompletion;
 use App\Models\CodeChallenge;
+use App\Services\AnalyticsService;
 use App\Services\CodeChallengeRunner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,7 +40,7 @@ class CodeChallengeController extends Controller
         return view('student.challenges.show', compact('challenge', 'completed'));
     }
 
-    public function run(Request $request, CodeChallenge $challenge, CodeChallengeRunner $runner): JsonResponse
+    public function run(Request $request, CodeChallenge $challenge, CodeChallengeRunner $runner, AnalyticsService $analytics): JsonResponse
     {
         abort_unless($challenge->is_active, 404);
 
@@ -98,6 +99,21 @@ class CodeChallengeController extends Controller
         $passed = $result['passed']
             && count($results) === count($tests)
             && collect($results)->every(fn ($test) => ($test['passed'] ?? false) === true);
+        $failedCategory = $passed ? null : $this->failedTestCategory((string) $result['output']);
+        $analytics->record([
+            'user_id' => Auth::id(),
+            'role' => Auth::user()->role,
+            'topic' => $challenge->title,
+            'language' => 'PHP',
+            'event_type' => 'challenge_run',
+            'payload' => [
+                'challenge_id' => $challenge->id,
+                'difficulty' => $challenge->difficulty,
+                'concept' => $challenge->title,
+                'passed' => $passed,
+                'failed_test_category' => $failedCategory,
+            ],
+        ]);
         $newBadge = false;
 
         if ($passed) {
@@ -127,5 +143,15 @@ class CodeChallengeController extends Controller
             'badge' => $passed ? $challenge->badge_name : null,
             'badge_unlocked' => $newBadge,
         ]);
+    }
+
+    private function failedTestCategory(string $output): string
+    {
+        return match (true) {
+            preg_match('/syntax|parse error|unexpected token/i', $output) === 1 => 'syntax_error',
+            preg_match('/fatal error|runtime error|uncaught|exception/i', $output) === 1 => 'runtime_error',
+            preg_match('/timeout|timed out|time limit/i', $output) === 1 => 'timeout',
+            default => 'edge_case_assertion_failure',
+        };
     }
 }

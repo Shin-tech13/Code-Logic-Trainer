@@ -42,6 +42,14 @@ Public registration asks for a personal email address, year level, student ID, a
 
 Students can view and update their own name, private recovery email, and optional age in their profile; their Code Logic login address, student ID, year level, and enrolled classes are shown there. Professors can manage name, recovery email, age, year level, student ID, and class for students connected to them through account attribution, an active whitelist entry, or one of their classrooms. Student quiz history combines completed self-study attempts with completed live-session participation records and uses saved question explanations where available.
 
+## Analytics and progress
+
+The analytics migration adds `analytics_events` for question views, submitted or changed answers, completed attempts, live tab-switch signals, and code-challenge runs. Event writes are scheduled after the HTTP response; failed writes are logged without changing quiz or challenge outcomes. Challenge telemetry stores pass/fail categories and challenge metadata, not submitted source code.
+
+Professor quiz analytics are restricted to quizzes owned by the signed-in professor and students assigned through that professor's classrooms, active whitelist, or account attribution. CSV exports contain cohort aggregates only. Question, score-distribution, and language/topic breakdowns are suppressed until the cohort reaches five students; a tab-switch count is a monitoring signal and is not proof of misconduct. Self-study completion is completed attempts divided by started attempts; live completion is completed participants divided by joined participants.
+
+Apply the analytics migration with the regular deployment migration command after backing up production. Student progress and professor reports use existing attempt, participant, and challenge records alongside the new event table; existing records are not rewritten or backfilled with historical response-time or challenge-run telemetry.
+
 Existing users keep their current email value as their login address, and the migration copies existing non-`@codelogic.com` addresses into the private recovery field. Existing `@codelogic.com` logins are not treated as mailboxes; those users need to set a recovery email in their profile.
 
 Before deploying the schema change, back up the production database. Then run the migration once against the intended database:
