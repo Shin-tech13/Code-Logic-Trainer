@@ -27,12 +27,9 @@
                     <a href="{{ route('professor.analytics.show', $quiz->id) }}" class="app-secondary-button inline-flex min-h-11 items-center px-4 text-sm font-semibold text-ink-soft">
                         View analytics
                     </a>
-                    <form method="POST" action="{{ route('professor.sessions.launch', $quiz->id) }}">
-                        @csrf
-                        <button type="submit" class="auth-primary-button inline-flex min-h-10 items-center px-4 text-sm font-semibold">
-                            Start live session
-                        </button>
-                    </form>
+                    <a href="{{ route('professor.sessions.create', $quiz->id) }}" class="auth-primary-button inline-flex min-h-11 items-center px-4 text-sm font-semibold">
+                        Start live session
+                    </a>
                 </div>
             </header>
 

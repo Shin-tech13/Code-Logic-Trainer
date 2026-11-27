@@ -6,15 +6,41 @@ use App\Models\Quiz;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
 use App\Support\LiveQuizAnalytics;
+use App\Support\LiveSessionRoster;
 use App\Support\QuestionTimer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ProfessorSessionController extends Controller
 {
-    public function launch(Quiz $quiz)
+    public function create(Quiz $quiz, LiveSessionRoster $roster)
+    {
+        if ($quiz->professor_id !== Auth::id()) {
+            abort(403);
+        }
+
+        if ($quiz->questions()->count() === 0) {
+            return redirect()->route('professor.quizzes.show', $quiz)
+                ->withErrors(['quiz' => 'This quiz has no questions yet.']);
+        }
+
+        $professor = Auth::user();
+        $classrooms = $professor->classrooms()->withCount('students')->orderBy('title')->get();
+        $rosterOptions = $roster->selectableInvitees($professor);
+        $activeWhitelistCount = $professor->whitelistedStudents()->where('status', 'active')->count();
+
+        return view('professor.sessions.create', compact(
+            'quiz',
+            'classrooms',
+            'rosterOptions',
+            'activeWhitelistCount',
+        ));
+    }
+
+    public function launch(Request $request, Quiz $quiz, LiveSessionRoster $roster)
     {
         if ($quiz->professor_id !== Auth::id()) {
             abort(403);
@@ -27,6 +53,7 @@ class ProfessorSessionController extends Controller
         // Keep one waiting or active session per quiz.
         $existing = QuizSession::live()
             ->where('quiz_id', $quiz->id)
+            ->where('professor_id', Auth::id())
             ->whereIn('status', ['waiting', 'in_progress'])
             ->first();
 
@@ -34,16 +61,54 @@ class ProfessorSessionController extends Controller
             return redirect()->route('professor.sessions.lobby', $existing->id);
         }
 
-        $session = QuizSession::create([
-            'quiz_id'      => $quiz->id,
-            'professor_id' => Auth::id(),
-            'status'       => 'waiting',
-            'type'         => 'live',
-            'quiz_format'  => $quiz->quiz_format ?? 'multiple_choice',
-            'quiz_code'    => $this->generateUniqueCode(),
-            'score'        => 0,
-            'seconds_per_question' => QuestionTimer::normalize($quiz->seconds_per_question),
+        $validated = $request->validate([
+            'roster_mode' => ['sometimes', 'in:saved_class,manual,all_whitelisted'],
+            'classroom_id' => ['required_if:roster_mode,saved_class', 'nullable', 'integer'],
+            'roster_emails' => ['nullable', 'array', 'max:500'],
+            'roster_emails.*' => ['required', 'email', 'max:255'],
+            'manual_emails' => ['nullable', 'string', 'max:10000'],
+            'is_make_up' => ['sometimes', 'boolean'],
+            'make_up_label' => ['nullable', 'string', 'max:120'],
         ]);
+        $rosterMode = $validated['roster_mode'] ?? 'all_whitelisted';
+        [$inviteeEmails, $classroomId] = $this->resolveRosterSelection(
+            Auth::user(),
+            $rosterMode,
+            $validated,
+            $roster,
+        );
+        $isMakeUp = (bool) ($validated['is_make_up'] ?? false);
+        $makeUpLabel = $isMakeUp
+            ? (trim((string) ($validated['make_up_label'] ?? '')) ?: null)
+            : null;
+
+        $session = DB::transaction(function () use (
+            $quiz,
+            $rosterMode,
+            $classroomId,
+            $inviteeEmails,
+            $isMakeUp,
+            $makeUpLabel,
+        ) {
+            $session = QuizSession::create([
+                'quiz_id'      => $quiz->id,
+                'professor_id' => Auth::id(),
+                'status'       => 'waiting',
+                'type'         => 'live',
+                'quiz_format'  => $quiz->quiz_format ?? 'multiple_choice',
+                'quiz_code'    => $this->generateUniqueCode(),
+                'score'        => 0,
+                'seconds_per_question' => QuestionTimer::normalize($quiz->seconds_per_question),
+                'is_make_up' => $isMakeUp,
+                'make_up_label' => $makeUpLabel,
+                'roster_mode' => $rosterMode,
+                'classroom_id' => $classroomId,
+            ]);
+
+            $this->storeInvitees($session, $inviteeEmails);
+
+            return $session;
+        });
 
         return redirect()->route('professor.sessions.lobby', $session->id);
     }
@@ -52,7 +117,7 @@ class ProfessorSessionController extends Controller
     {
         $this->authorizeSession($session);
 
-        $session->load('quiz.questions', 'participants.student');
+        $session->load('quiz.questions', 'participants.student', 'classroom');
         $analytics = LiveQuizAnalytics::build($session);
 
         return view('professor.lobby', compact('session', 'analytics'));
@@ -99,6 +164,9 @@ class ProfessorSessionController extends Controller
             'quiz_title'   => $session->quiz->title,
             'question_count' => $session->quiz->question_count,
             'seconds_per_question' => QuestionTimer::normalize($session->seconds_per_question),
+            'is_make_up' => $session->is_make_up,
+            'make_up_label' => $session->make_up_label,
+            'roster_mode' => $session->roster_mode,
             'analytics' => LiveQuizAnalytics::build($session),
             'participants' => $session->participants->map(
                 fn (SessionParticipant $participant) => LiveQuizAnalytics::participantSummary(
@@ -125,6 +193,9 @@ class ProfessorSessionController extends Controller
             'quiz_title' => $session->quiz?->title,
             'question_count' => $analytics['question_count'],
             'seconds_per_question' => QuestionTimer::normalize($session->seconds_per_question),
+            'is_make_up' => $session->is_make_up,
+            'make_up_label' => $session->make_up_label,
+            'roster_mode' => $session->roster_mode,
             'started_at' => $session->started_at?->toIso8601String(),
             'updated_at' => $session->updated_at?->toIso8601String(),
             'refreshed_at' => now()->toIso8601String(),
@@ -384,6 +455,116 @@ class ProfessorSessionController extends Controller
     {
         abort_unless($session->type === 'live', 404);
         abort_unless($session->professor_id === Auth::id(), 403);
+    }
+
+    /**
+     * @return array{0: list<string>, 1: int|null}
+     */
+    private function resolveRosterSelection(
+        \App\Models\User $professor,
+        string $mode,
+        array $validated,
+        LiveSessionRoster $roster,
+    ): array {
+        if ($mode === 'saved_class') {
+            $classroom = $professor->classrooms()
+                ->with('students:id,personal_email')
+                ->find($validated['classroom_id'] ?? null);
+            abort_unless($classroom, 403, 'You can only select one of your saved classes.');
+
+            $emails = $classroom->students
+                ->map(fn ($student) => $roster->normalizeEmail($student->personal_email))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            return [$emails, $classroom->id];
+        }
+
+        if ($mode === 'manual') {
+            $selectedEmails = array_values(array_unique(array_filter(array_map(
+                fn ($email) => $roster->normalizeEmail((string) $email),
+                $validated['roster_emails'] ?? [],
+            ))));
+            $availableEmails = $roster->selectableInvitees($professor)->pluck('email')->all();
+
+            if (array_diff($selectedEmails, $availableEmails) !== []) {
+                throw ValidationException::withMessages([
+                    'roster_emails' => 'Choose registered students or active whitelist entries managed by you.',
+                ]);
+            }
+
+            $manualEmails = preg_split(
+                '/[\s,;]+/',
+                (string) ($validated['manual_emails'] ?? ''),
+                -1,
+                PREG_SPLIT_NO_EMPTY,
+            ) ?: [];
+            $invalidEmails = [];
+            foreach ($manualEmails as $email) {
+                $email = $roster->normalizeEmail($email);
+                if ($email === null || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+                    $invalidEmails[] = $email ?? '';
+                } else {
+                    $selectedEmails[] = $email;
+                }
+            }
+
+            if ($invalidEmails !== []) {
+                throw ValidationException::withMessages([
+                    'manual_emails' => 'Remove or correct these invalid email addresses: '.implode(', ', $invalidEmails),
+                ]);
+            }
+
+            $emails = array_values(array_unique($selectedEmails));
+            if ($emails === []) {
+                throw ValidationException::withMessages([
+                    'roster_emails' => 'Select at least one student or enter at least one email address.',
+                ]);
+            }
+            if (count($emails) > 500) {
+                throw ValidationException::withMessages([
+                    'manual_emails' => 'A session roster can include up to 500 students.',
+                ]);
+            }
+
+            return [$emails, null];
+        }
+
+        $emails = $professor->whitelistedStudents()
+            ->where('status', 'active')
+            ->pluck('email')
+            ->map(fn ($email) => $roster->normalizeEmail($email))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return [$emails, null];
+    }
+
+    /**
+     * @param  list<string>  $emails
+     */
+    private function storeInvitees(QuizSession $session, array $emails): void
+    {
+        if ($emails === []) {
+            return;
+        }
+
+        $usersByEmail = \App\Models\User::query()
+            ->where('role', 'student')
+            ->whereIn(DB::raw('LOWER(personal_email)'), $emails)
+            ->get(['id', 'personal_email'])
+            ->keyBy(fn ($student) => strtolower(trim((string) $student->personal_email)));
+
+        foreach ($emails as $email) {
+            $session->invitees()->create([
+                'email' => $email,
+                'user_id' => $usersByEmail->get($email)?->id,
+            ]);
+        }
     }
 
     private function safeCsvCell(mixed $value): string|int|float

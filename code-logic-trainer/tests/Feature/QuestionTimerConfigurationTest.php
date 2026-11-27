@@ -4,6 +4,7 @@ use App\Models\Quiz;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
 use App\Models\User;
+use App\Models\WhitelistedStudent;
 use App\Services\GeminiQuizService;
 use App\Services\QuizGeneratorService;
 use App\Support\QuestionTimer;
@@ -78,6 +79,10 @@ test('student topic quiz saves the normalized timer and renders that countdown',
 
 test('professor quiz and waiting live-session timer settings normalize before saving', function () {
     $professor = User::factory()->create(['role' => 'professor']);
+    $student = User::factory()->create([
+        'is_whitelisted' => true,
+        'personal_email' => 'timer-student@example.test',
+    ]);
     $quiz = Quiz::create([
         'professor_id' => $professor->id,
         'title' => 'Timed quiz',
@@ -89,6 +94,12 @@ test('professor quiz and waiting live-session timer settings normalize before sa
         'options' => ['A', 'B'],
         'correct_answer' => 'A',
         'explanation' => 'A is true.',
+    ]);
+    WhitelistedStudent::create([
+        'professor_id' => $professor->id,
+        'name' => 'Timer Student',
+        'email' => 'timer-student@example.test',
+        'status' => 'active',
     ]);
 
     $this->actingAs($professor)
@@ -118,7 +129,6 @@ test('professor quiz and waiting live-session timer settings normalize before sa
 
     expect($session->fresh()->seconds_per_question)->toBe(20);
 
-    $student = User::factory()->create(['is_whitelisted' => true]);
     SessionParticipant::create([
         'quiz_session_id' => $session->id,
         'student_id' => $student->id,

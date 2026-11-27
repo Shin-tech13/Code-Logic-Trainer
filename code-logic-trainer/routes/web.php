@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 use App\Http\Controllers\StudentQuizController;
 use App\Http\Controllers\StudentLiveQuizController;
 use App\Http\Controllers\ProfessorQuizController;
@@ -15,32 +16,40 @@ use App\Http\Controllers\AnalyticsController;
 
 // Route signed-in users to their role dashboard.
 Route::get('/', function () {
-    if (! Auth::check()) {
+    $user = Auth::user();
+
+    if (! $user instanceof User) {
         return redirect()->route('login');
     }
 
     abort_unless(
-        Auth::user()->isApproved() && in_array(Auth::user()->role, ['admin', 'professor', 'student'], true),
+        $user->isApproved() && in_array($user->role, ['admin', 'professor', 'student'], true),
         403,
         'This account is not authorized to access the application.'
     );
 
-    if (Auth::user()->isAdmin()) {
+    if ($user->isAdmin()) {
         return redirect()->route('users.index');
     }
 
-    return Auth::user()->isProfessor()
+    return $user->isProfessor()
         ? redirect()->route('professor.dashboard')
         : redirect()->route('student.dashboard');
 });
 
 // Keep Breeze's dashboard URL role-aware.
 Route::get('/dashboard', function () {
-    if (Auth::user()->isAdmin()) {
+    $user = Auth::user();
+
+    if (! ($user instanceof User)) {
+        abort(403);
+    }
+
+    if ($user->isAdmin()) {
         return redirect()->route('users.index');
     }
 
-    return Auth::user()->isProfessor()
+    return $user->isProfessor()
         ? redirect()->route('professor.dashboard')
         : redirect()->route('student.dashboard');
 })->middleware(['auth', 'account-approved'])->name('dashboard');
@@ -81,6 +90,7 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
     Route::delete('/quizzes/{quiz}', [ProfessorQuizController::class, 'destroy'])->name('quizzes.destroy');
 
     // Live quiz sessions
+    Route::get('/quizzes/{quiz}/sessions/create', [ProfessorSessionController::class, 'create'])->name('sessions.create');
     Route::post('/quizzes/{quiz}/launch', [ProfessorSessionController::class, 'launch'])->name('sessions.launch');
     Route::get('/sessions/{session}/lobby', [ProfessorSessionController::class, 'lobby'])->name('sessions.lobby');
     Route::get('/sessions/{session}/status', [ProfessorSessionController::class, 'lobbyStatus'])->name('sessions.status');
@@ -119,12 +129,15 @@ Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefi
 });
 
 // Student live-quiz routes
-Route::middleware(['auth', 'account-approved', 'student', 'whitelisted'])->prefix('live')->name('student.live.')->group(function () {
+Route::middleware(['auth', 'account-approved', 'student'])->prefix('live')->name('student.live.')->group(function () {
     Route::get('/join', [StudentLiveQuizController::class, 'join'])->name('join');
     Route::post('/join', [StudentLiveQuizController::class, 'joinSession'])->name('join.store');
     Route::get('/session/{session}/lobby', [StudentLiveQuizController::class, 'lobby'])->name('lobby');
     Route::get('/session/{session}/status', [StudentLiveQuizController::class, 'lobbyStatus'])->name('status');
     Route::get('/session/{session}/take', [StudentLiveQuizController::class, 'take'])->name('take');
+    Route::post('/session/{session}/heartbeat', [StudentLiveQuizController::class, 'heartbeat'])
+        ->middleware('throttle:60,1')
+        ->name('heartbeat');
     Route::post('/session/{session}/flag-tab-switch', [StudentLiveQuizController::class, 'flagTabSwitch'])->name('flag-tab-switch');
     Route::post('/session/{session}/progress', [StudentLiveQuizController::class, 'saveProgress'])->name('progress');
     Route::post('/session/{session}/submit', [StudentLiveQuizController::class, 'submit'])->name('submit');

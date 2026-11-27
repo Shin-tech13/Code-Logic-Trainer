@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
 use App\Services\AnalyticsService;
+use App\Support\LiveSessionRoster;
 use App\Support\QuestionTimer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class StudentLiveQuizController extends Controller
 {
+    public function __construct(private LiveSessionRoster $sessionRoster)
+    {
+    }
+
     public function join()
     {
         return view('student.join');
@@ -39,6 +44,12 @@ class StudentLiveQuizController extends Controller
                 ]);
             }
 
+            if (! $this->sessionRoster->isEligible($session, Auth::user())) {
+                throw ValidationException::withMessages([
+                    'quiz_code' => 'No active session was found for that code, or your email is not on its roster.',
+                ]);
+            }
+
             $participant = SessionParticipant::firstOrCreate(
                 [
                     'quiz_session_id' => $session->id,
@@ -61,9 +72,7 @@ class StudentLiveQuizController extends Controller
 
     public function lobby(QuizSession $session)
     {
-        if ($session->type !== 'live') {
-            abort(404);
-        }
+        $this->authorizeRoster($session);
 
         $participant = SessionParticipant::where('quiz_session_id', $session->id)
             ->where('student_id', Auth::id())
@@ -81,9 +90,7 @@ class StudentLiveQuizController extends Controller
 
     public function lobbyStatus(QuizSession $session)
     {
-        if ($session->type !== 'live') {
-            abort(404);
-        }
+        $this->authorizeRoster($session);
 
         $participant = SessionParticipant::where('quiz_session_id', $session->id)
             ->where('student_id', Auth::id())
@@ -112,9 +119,7 @@ class StudentLiveQuizController extends Controller
 
     public function take(QuizSession $session, AnalyticsService $analytics)
     {
-        if ($session->type !== 'live') {
-            abort(404);
-        }
+        $this->authorizeRoster($session);
 
         $participant = SessionParticipant::where('quiz_session_id', $session->id)
             ->where('student_id', Auth::id())
@@ -155,6 +160,45 @@ class StudentLiveQuizController extends Controller
         return view('student.take', compact('session', 'participant', 'examActive', 'secondsPerQuestion'));
     }
 
+    public function heartbeat(QuizSession $session)
+    {
+        $participant = DB::transaction(function () use ($session) {
+            $lockedSession = QuizSession::query()
+                ->whereKey($session->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->authorizeRoster($lockedSession);
+            abort_unless($lockedSession->status === 'in_progress', 409, 'This live quiz is not in progress.');
+
+            $participant = SessionParticipant::query()
+                ->where('quiz_session_id', $lockedSession->id)
+                ->where('student_id', Auth::id())
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless(
+                $participant && in_array($participant->status, ['joined', 'in_progress'], true),
+                403,
+                'You are not an active participant in this session.'
+            );
+
+            $now = now();
+            $participant->forceFill([
+                'status' => 'in_progress',
+                'started_at' => $participant->started_at ?? $now,
+                'last_active_at' => $now,
+            ])->save();
+
+            return $participant;
+        });
+
+        return response()->json([
+            'alive' => true,
+            'last_active_at' => $participant->last_active_at?->toIso8601String(),
+        ]);
+    }
+
     // Record visibility and focus loss for the professor.
     public function flagTabSwitch(QuizSession $session, AnalyticsService $analytics)
     {
@@ -166,6 +210,7 @@ class StudentLiveQuizController extends Controller
 
             abort_unless($lockedSession->type === 'live', 404);
             abort_unless($lockedSession->status === 'in_progress', 409, 'This live quiz is not in progress.');
+            $this->authorizeRoster($lockedSession);
 
             $participant = SessionParticipant::query()
                 ->where('quiz_session_id', $lockedSession->id)
@@ -222,6 +267,7 @@ class StudentLiveQuizController extends Controller
 
             abort_unless($lockedSession->type === 'live', 404);
             abort_unless($lockedSession->status === 'in_progress', 409, 'This live quiz is not accepting answers.');
+            $this->authorizeRoster($lockedSession);
 
             $participant = SessionParticipant::query()
                 ->where('quiz_session_id', $lockedSession->id)
@@ -294,6 +340,7 @@ class StudentLiveQuizController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
             abort_unless($lockedSession->type === 'live', 404);
+            $this->authorizeRoster($lockedSession);
 
             $participant = SessionParticipant::query()
                 ->where('quiz_session_id', $lockedSession->id)
@@ -423,9 +470,7 @@ class StudentLiveQuizController extends Controller
 
     public function complete(QuizSession $session)
     {
-        if ($session->type !== 'live') {
-            abort(404);
-        }
+        $this->authorizeRoster($session);
 
         $participant = SessionParticipant::where('quiz_session_id', $session->id)
             ->where('student_id', Auth::id())
@@ -440,5 +485,17 @@ class StudentLiveQuizController extends Controller
         $session->load('quiz.questions');
 
         return view('student.complete', compact('session', 'participant'));
+    }
+
+    private function authorizeRoster(QuizSession $session): void
+    {
+        abort_unless($session->type === 'live', 404);
+
+        $student = Auth::user();
+        abort_unless(
+            $student && $this->sessionRoster->isEligible($session, $student),
+            403,
+            'You are not eligible to access this live session.'
+        );
     }
 }

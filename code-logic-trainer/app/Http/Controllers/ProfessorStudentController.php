@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Classroom;
 use App\Models\User;
-use App\Models\WhitelistedStudent;
+use App\Support\LiveSessionRoster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -13,22 +13,14 @@ use Illuminate\View\View;
 
 class ProfessorStudentController extends Controller
 {
+    public function __construct(private LiveSessionRoster $sessionRoster)
+    {
+    }
+
     public function index(): View
     {
         $professor = Auth::user();
-        $whitelistedEmails = WhitelistedStudent::query()
-            ->where('professor_id', $professor->id)
-            ->where('status', 'active')
-            ->pluck('email');
-
-        $students = User::query()
-            ->where('role', 'student')
-            ->where(function ($query) use ($professor, $whitelistedEmails) {
-                $query->where('created_by_user_id', $professor->id)
-                    ->orWhereIn('personal_email', $whitelistedEmails)
-                    ->orWhereHas('enrolledClassrooms', fn ($classroomQuery) => $classroomQuery
-                        ->where('classrooms.professor_id', $professor->id));
-            })
+        $students = $this->sessionRoster->managedStudents($professor)
             ->with(['enrolledClassrooms' => fn ($query) => $query
                 ->where('classrooms.professor_id', $professor->id)
                 ->orderBy('title')])
@@ -128,16 +120,6 @@ class ProfessorStudentController extends Controller
         abort_unless($student->isStudent(), 404);
 
         $professor = Auth::user();
-        $isCreator = $student->created_by_user_id === $professor->id;
-        $isWhitelisted = WhitelistedStudent::query()
-            ->where('professor_id', $professor->id)
-            ->where('email', $student->personal_email)
-            ->where('status', 'active')
-            ->exists();
-        $isInClass = $student->enrolledClassrooms()
-            ->where('classrooms.professor_id', $professor->id)
-            ->exists();
-
-        abort_unless($isCreator || $isWhitelisted || $isInClass, 403);
+        abort_unless($this->sessionRoster->manages($professor, $student), 403);
     }
 }

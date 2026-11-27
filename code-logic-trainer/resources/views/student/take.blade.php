@@ -80,10 +80,38 @@
             const tabSwitchWarning = document.getElementById('tab-switch-warning');
             const tabSwitchWarningMessage = document.getElementById('tab-switch-warning-message');
             const progressSyncWarning = document.getElementById('progress-sync-warning');
+            const heartbeatUrl = @json(route('student.live.heartbeat', $session->id));
             const pendingProgressSaves = new Set();
             let examActive = @json($examActive);
+            let heartbeatInterval = null;
             let lastTabSwitchSentAt = 0;
             let tabSwitchWarningTimeout = null;
+
+            async function sendHeartbeat() {
+                if (!examActive) return;
+
+                try {
+                    const response = await fetch(heartbeatUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.alive) {
+                        throw new Error(data.message || 'The live session heartbeat could not be recorded.');
+                    }
+
+                    progressSyncWarning.classList.add('hidden');
+                } catch (error) {
+                    console.error('Could not update live quiz activity:', error);
+                    if (examActive) {
+                        progressSyncWarning.textContent = 'Your connection to the live session is interrupted. Check your connection before continuing.';
+                        progressSyncWarning.classList.remove('hidden');
+                    }
+                }
+            }
 
             function renderTimer() {
                 const minutes = Math.floor(remainingSeconds / 60);
@@ -195,6 +223,10 @@
             async function submitQuiz() {
                 stopTimer();
                 examActive = false;
+                if (heartbeatInterval !== null) {
+                    window.clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
                 updateProgress();
                 document.getElementById('quiz-box').classList.add('hidden');
                 await Promise.race([
@@ -259,6 +291,10 @@
 
             updateProgress();
             startTimer();
+            if (examActive) {
+                sendHeartbeat();
+                heartbeatInterval = window.setInterval(sendHeartbeat, 15000);
+            }
         });
     </script>
 </x-app-layout>

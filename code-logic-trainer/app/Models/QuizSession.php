@@ -21,6 +21,10 @@ class QuizSession extends Model
         'status', // active, waiting, in progress, completed
         'quiz_code',
         'type', // self_study or live
+        'is_make_up',
+        'make_up_label',
+        'roster_mode',
+        'classroom_id',
         'quiz_format',
         'source_file_id',
         'started_at',
@@ -30,6 +34,7 @@ class QuizSession extends Model
     protected $casts = [
         'started_at' => 'datetime',
         'answers' => 'array',
+        'is_make_up' => 'boolean',
     ];
 
     public function getSecondsPerQuestionAttribute($value): int
@@ -70,6 +75,16 @@ class QuizSession extends Model
     public function participants()
     {
         return $this->hasMany(SessionParticipant::class);
+    }
+
+    public function invitees()
+    {
+        return $this->hasMany(QuizSessionInvitee::class);
+    }
+
+    public function classroom()
+    {
+        return $this->belongsTo(Classroom::class);
     }
 
     public function scopeLive($query)

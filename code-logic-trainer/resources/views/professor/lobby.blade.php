@@ -244,6 +244,26 @@
                     <span class="mx-1 text-ink-faint" aria-hidden="true">·</span>
                     <span x-text="status === 'waiting' ? 'Waiting to start' : (status === 'in_progress' ? 'Live session' : 'Session ended')"></span>
                 </p>
+                <p class="mt-2 text-xs text-ink-subtle">
+                    Roster:
+                    @if ($session->roster_mode === 'saved_class')
+                        {{ $session->classroom?->title ?? 'Saved class' }}
+                    @elseif ($session->roster_mode === 'manual')
+                        Manual / specific students
+                    @elseif ($session->roster_mode === 'all_whitelisted')
+                        All whitelisted students
+                    @else
+                        Existing whitelist access
+                    @endif
+                </p>
+                @if ($session->is_make_up)
+                    <p class="mt-2 inline-flex flex-wrap items-center gap-2 text-sm text-accent-200">
+                        <span class="rounded-full border border-accent-300/20 bg-accent-400/[0.06] px-2.5 py-1 text-xs font-semibold">Make-up session</span>
+                        @if ($session->make_up_label)
+                            <span class="text-ink-muted">{{ $session->make_up_label }}</span>
+                        @endif
+                    </p>
+                @endif
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <p class="text-xs text-ink-subtle" role="status">
