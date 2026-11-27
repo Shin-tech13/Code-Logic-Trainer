@@ -27,6 +27,11 @@ class Classroom extends Model
         return $this->belongsToMany(User::class, 'classroom_student', 'classroom_id', 'student_id');
     }
 
+    public function emailAssignments()
+    {
+        return $this->hasMany(ClassroomEmailAssignment::class);
+    }
+
     public function uploadedFiles()
     {
         return $this->hasMany(UploadedFile::class);

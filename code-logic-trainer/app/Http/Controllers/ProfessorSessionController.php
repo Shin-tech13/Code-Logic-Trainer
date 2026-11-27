@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use App\Models\QuizSession;
 use App\Models\SessionParticipant;
+use App\Models\User;
 use App\Support\LiveQuizAnalytics;
 use App\Support\LiveSessionRoster;
 use App\Support\QuestionTimer;
@@ -27,8 +28,11 @@ class ProfessorSessionController extends Controller
                 ->withErrors(['quiz' => 'This quiz has no questions yet.']);
         }
 
-        $professor = Auth::user();
-        $classrooms = $professor->classrooms()->withCount('students')->orderBy('title')->get();
+        $professor = $this->authenticatedProfessor();
+        $classrooms = $professor->classrooms()
+            ->withCount(['students', 'emailAssignments'])
+            ->orderBy('title')
+            ->get();
         $rosterOptions = $roster->selectableInvitees($professor);
         $activeWhitelistCount = $professor->whitelistedStudents()->where('status', 'active')->count();
 
@@ -72,7 +76,7 @@ class ProfessorSessionController extends Controller
         ]);
         $rosterMode = $validated['roster_mode'] ?? 'all_whitelisted';
         [$inviteeEmails, $classroomId] = $this->resolveRosterSelection(
-            Auth::user(),
+            $this->authenticatedProfessor(),
             $rosterMode,
             $validated,
             $roster,
@@ -461,19 +465,24 @@ class ProfessorSessionController extends Controller
      * @return array{0: list<string>, 1: int|null}
      */
     private function resolveRosterSelection(
-        \App\Models\User $professor,
+        User $professor,
         string $mode,
         array $validated,
         LiveSessionRoster $roster,
     ): array {
         if ($mode === 'saved_class') {
             $classroom = $professor->classrooms()
-                ->with('students:id,personal_email')
+                ->with([
+                    'students:id,personal_email',
+                    'emailAssignments:id,classroom_id,email',
+                ])
                 ->find($validated['classroom_id'] ?? null);
             abort_unless($classroom, 403, 'You can only select one of your saved classes.');
 
             $emails = $classroom->students
                 ->map(fn ($student) => $roster->normalizeEmail($student->personal_email))
+                ->toBase()
+                ->merge($classroom->emailAssignments->map(fn ($assignment) => $roster->normalizeEmail($assignment->email)))
                 ->filter()
                 ->unique()
                 ->values()
@@ -574,6 +583,17 @@ class ProfessorSessionController extends Controller
         }
 
         return preg_match('/^[\t\r\n ]*[=+\-@]/', $value) === 1 ? "'".$value : $value;
+    }
+
+    private function authenticatedProfessor(): User
+    {
+        $professor = Auth::user();
+
+        if (! ($professor instanceof User)) {
+            abort(403);
+        }
+
+        return $professor;
     }
 
     // Join codes use the QZ-XXXX format.

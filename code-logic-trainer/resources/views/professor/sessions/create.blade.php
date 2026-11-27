@@ -90,7 +90,7 @@
                                     <option value="">Choose a saved class</option>
                                     @foreach ($classrooms as $classroom)
                                         <option value="{{ $classroom->id }}" @selected((string) old('classroom_id') === (string) $classroom->id)>
-                                            {{ $classroom->title }} · {{ $classroom->students_count }} {{ \Illuminate\Support\Str::plural('student', $classroom->students_count) }}
+                                            {{ $classroom->title }} · {{ $classroom->students_count + $classroom->email_assignments_count }} {{ \Illuminate\Support\Str::plural('roster entry', $classroom->students_count + $classroom->email_assignments_count) }}
                                         </option>
                                     @endforeach
                                 </select>

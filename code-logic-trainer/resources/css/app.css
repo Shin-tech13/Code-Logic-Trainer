@@ -205,6 +205,32 @@
         background-color: rgb(139 92 246 / 16%);
     }
 
+    .app-primary-button {
+        display: inline-flex;
+        min-height: 2.5rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-control);
+        background-color: var(--color-accent-600);
+        padding: 0.5rem 0.75rem;
+        color: #fff;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition-property: background-color, box-shadow;
+        transition-duration: var(--duration-base);
+        transition-timing-function: var(--ease-craft-out);
+    }
+
+    .app-primary-button:hover {
+        background-color: var(--color-accent-500);
+        box-shadow: 0 8px 20px -14px rgb(139 92 246 / 70%);
+    }
+
+    .app-primary-button:focus-visible {
+        outline: 2px solid var(--color-accent-300);
+        outline-offset: 2px;
+    }
+
     .app-action-button {
         min-height: 2.5rem;
         border-radius: var(--radius-control);

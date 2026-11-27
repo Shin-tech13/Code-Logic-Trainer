@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClassroomEmailAssignment;
 use App\Models\WhitelistedStudent;
 use App\Models\User;
 use App\Notifications\AccountPendingApproval;
@@ -42,6 +43,10 @@ class RegisteredUserController extends Controller
         AccountNotificationSender $notificationSender
     ): RedirectResponse
     {
+        $request->merge([
+            'personal_email' => strtolower(trim((string) $request->input('personal_email'))),
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'personal_email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,personal_email'],
@@ -54,11 +59,12 @@ class RegisteredUserController extends Controller
         ]);
 
         $user = DB::transaction(function () use ($validated, $loginAddress) {
-            $whitelistEntry = WhitelistedStudent::where('email', $validated['personal_email'])->first();
+            $personalEmail = strtolower(trim($validated['personal_email']));
+            $whitelistEntry = WhitelistedStudent::whereRaw('LOWER(email) = ?', [$personalEmail])->first();
             $user = new User([
                 'name' => $validated['name'],
                 'email' => $loginAddress->generate($validated['name']),
-                'personal_email' => $validated['personal_email'],
+                'personal_email' => $personalEmail,
                 'year_level' => $validated['year_level'],
                 'student_id' => $validated['student_id'],
                 'password' => $validated['password'],
@@ -74,6 +80,15 @@ class RegisteredUserController extends Controller
             }
 
             $user->save();
+
+            $classAssignments = ClassroomEmailAssignment::query()
+                ->whereRaw('LOWER(email) = ?', [$personalEmail])
+                ->get(['id', 'classroom_id']);
+
+            if ($classAssignments->isNotEmpty()) {
+                $user->enrolledClassrooms()->syncWithoutDetaching($classAssignments->pluck('classroom_id')->all());
+                ClassroomEmailAssignment::query()->whereIn('id', $classAssignments->modelKeys())->delete();
+            }
 
             return $user;
         });

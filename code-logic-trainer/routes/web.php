@@ -71,6 +71,8 @@ Route::middleware(['auth', 'account-approved', 'professor'])->prefix('professor'
     Route::get('/dashboard', [ProfessorQuizController::class, 'index'])->name('dashboard');
     Route::get('/students', [ProfessorStudentController::class, 'index'])->name('students.index');
     Route::post('/classrooms', [ProfessorStudentController::class, 'storeClassroom'])->name('classrooms.store');
+    Route::post('/classrooms/assign-student', [ProfessorStudentController::class, 'assignToClass'])->name('classrooms.students.assign');
+    Route::delete('/classroom-email-assignments/{assignment}', [ProfessorStudentController::class, 'removeEmailAssignment'])->name('classroom-email-assignments.destroy');
     Route::get('/students/{student}/edit', [ProfessorStudentController::class, 'edit'])->name('students.edit');
     Route::patch('/students/{student}', [ProfessorStudentController::class, 'update'])->name('students.update');
 

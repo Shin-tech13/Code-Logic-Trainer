@@ -62,7 +62,7 @@
                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-field)] border border-accent-300/20 bg-accent-400/10 font-mono text-sm text-accent-200" aria-hidden="true">{ }</span>
                     <div>
                         <h2 class="text-lg font-semibold tracking-tight text-ink-text">Add multiple students</h2>
-                        <p class="mt-1 text-sm text-ink-subtle">Paste email addresses separated by newlines, commas, or semicolons.</p>
+                        <p id="bulk-emails-help" class="mt-1 text-sm text-ink-subtle">Paste email addresses separated by newlines, commas, or semicolons.</p>
                     </div>
                 </div>
                 <div class="app-tile mt-4 p-4">
@@ -75,9 +75,9 @@ student.three@school.edu</code></pre>
                     @csrf
                     <div>
                         <label for="bulk_emails" class="auth-label">Student email addresses</label>
-                        <textarea id="bulk_emails" name="bulk_emails" rows="5" class="auth-input mt-2 font-mono text-sm" placeholder="a@school.edu&#10;b@school.edu&#10;c@school.edu">{{ old('bulk_emails') }}</textarea>
+                        <textarea id="bulk_emails" name="bulk_emails" rows="5" spellcheck="false" aria-describedby="bulk-emails-help" class="mt-2 block min-h-32 w-full resize-y rounded-[var(--radius-field)] border border-white/15 bg-ink-950/75 px-3 py-3 text-left font-mono text-base leading-6 text-ink-text transition-[border-color,box-shadow] duration-base placeholder:whitespace-pre-line placeholder:text-ink-faint focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/25 sm:text-sm" placeholder="a@school.edu&#10;b@school.edu&#10;c@school.edu">{{ old('bulk_emails') }}</textarea>
                     </div>
-                    <button type="submit" class="auth-primary-button min-h-12 px-5 text-sm font-semibold">Add email list</button>
+                    <button type="submit" class="app-primary-button min-h-11 px-5 text-sm">Add email list</button>
                 </form>
             </section>
 
